@@ -2,11 +2,11 @@ import torch
 
 def estimation_alpha(bands_low, bands_high):
 
-    bands_low_f = torch.flatten(bands_low, start_dim=2).float()
-    bands_high_f = torch.flatten(bands_high, start_dim=2).float()
+    bands_low_f = torch.flatten(bands_low, start_dim=2).double()
+    bands_high_f = torch.flatten(bands_high, start_dim=2).double()
 
     alpha = torch.linalg.lstsq(bands_low_f.transpose(1, 2), bands_high_f.transpose(1, 2)).solution
-    return alpha[:,:,:, None]
+    return alpha[:,:,:, None].float()
 
 def eps(X):
     from torch import floor, log2
