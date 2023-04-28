@@ -117,12 +117,30 @@ def MTF_GLP_HPM_H(bands_low, bands_high, sensor, ratio, decimation=True):
     min_bands_low = torch.amin(bands_low, dim=(2, 3), keepdim=True)
     bands_high_lp = LPfilterGauss(bands_high, ratio)
 
-    inp = torch.cat([torch.ones(bands_high_lp.shape, dtype=bands_high_lp.dtype, device=bands_high_lp.device), bands_low], dim=1)
+    inp = torch.cat([torch.ones(bands_high_lp.shape, dtype=bands_high_lp.dtype, device=bands_high_lp.device),
+                     bands_low],
+                    dim=1)
 
     alpha = estimation_alpha(inp, bands_high_lp)
 
+    alpha_p = torch.bmm(torch.squeeze(alpha, -1).transpose(1, 2), torch.squeeze(
+        torch.cat([torch.ones((bs, 1, 1, 1), device=alpha.device, dtype=alpha.dtype), min_bands_low], dim=1), -1))[:, :, :, None]
 
-    return
+    bands_hr = bands_high.repeat(1, c, 1, 1)
+
+    bands_hr_lp = mtf(bands_hr, sensor, ratio)
+
+    if decimation:
+        bands_hr_lr_lr = resize(bands_hr_lp, [h // ratio, w // ratio], interpolation=Inter.NEAREST_EXACT)
+        bands_hr_lr = interp23tap_torch(bands_hr_lr_lr, ratio, bands_hr_lr_lr.device)
+
+    bands_hr_pl = (bands_hr - alpha_p) / (bands_hr_lr - alpha_p + torch.finfo(bands_hr_lr.dtype).eps)
+
+    bands_low_l = bands_low - min_bands_low
+
+    fused = bands_low_l * bands_hr_pl + min_bands_low
+
+    return fused
 
 if __name__ == '__main__':
     from scipy import io
