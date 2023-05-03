@@ -31,7 +31,7 @@ def regress(y, X):
     P = torch.bmm(P, R)
     _, perm = torch.max(P, 1)
     """
-    b = torch.linalg.lstsq(R, torch.bmm(Q.transpose(1,2),y)).solution
+    b = torch.linalg.lstsq(R, torch.bmm(Q.transpose(1, 2), y)).solution
 
     return b
 
