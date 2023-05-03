@@ -142,6 +142,31 @@ def MTF_GLP_HPM_H(bands_low, bands_high, sensor, ratio, decimation=True):
 
     return fused
 
+def MTF_GLP_HPM_R(bands_low, bands_high, sensor, ratio):
+
+    bs, c, h, w = bands_low.shape
+
+    bands_hr = bands_high.repeat(1, c, 1, 1)
+
+    bands_hr_lp = mtf(bands_hr, sensor, ratio)
+    bands_hr_lr_lr = resize(bands_hr_lp, [h // ratio, w // ratio], interpolation=Inter.NEAREST_EXACT)
+    bands_hr_lr = interp23tap_torch(bands_hr_lr_lr, ratio, bands_hr_lr_lr.device)
+
+    g = []
+    for i in range(c):
+
+        inp = torch.flatten(torch.cat([bands_low[:, i, None, :, :], bands_hr_lr[:, i, None, :, :]], dim=1), start_dim=2).transpose(1,2)
+        C = batch_cov(inp)
+        g.append((C[:, 0, 1] / C[:, 1, 1])[:, None])
+
+    g = torch.cat(g, dim=1) [:, :, None, None]
+    cb = torch.mean(bands_low, dim=(2, 3), keepdim=True) / g - torch.mean(bands_hr, dim=(2, 3), keepdim=True)
+
+    fused = bands_low * (bands_hr + cb) / (bands_hr_lr + cb + torch.finfo(bands_low.dtype).eps)
+
+
+    return fused
+
 if __name__ == '__main__':
     from scipy import io
     import numpy as np
@@ -158,7 +183,7 @@ if __name__ == '__main__':
     ratio = 4
     ms_exp = interp23tap_torch(ms, 4, ms.device).float()
 
-    fused = MTF_GLP_HPM_H(ms_exp, pan, 'WV3', ratio)
+    fused = MTF_GLP_HPM_R(ms_exp, pan, 'WV3', ratio)
     f = fused.detach().cpu().numpy()
     b10 = pan.detach().cpu().numpy()
     b20 = ms.detach().cpu().numpy()
