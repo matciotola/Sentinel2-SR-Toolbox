@@ -3,7 +3,8 @@ import numpy as np
 import scipy.ndimage.filters as ft
 import torch
 import torch.nn as nn
-
+from torchvision.transforms.functional import pad
+from torch.nn.functional import conv2d
 
 def interp23tap(img, ratio):
     """
@@ -131,3 +132,49 @@ def interp23tap_torch(img, ratio, device):
     #img = np.moveaxis(img, 0, -1)
 
     return img
+
+
+
+def interp_3x_1d(img, N=50):
+    ratio = 3
+
+    bs, c, h, w = img.shape
+    n = torch.arange(-N, N + 1)
+    h1 = torch.sinc(n + 1 / ratio)
+    h1 = h1 / torch.sum(h1)
+
+    h1 = torch.fliplr(h1[None, :])
+    h1 = h1[None, None, :, :]
+
+    h2 = torch.sinc(n + 2 / ratio)
+    h2 = h2 / torch.sum(h2)
+    h2 = torch.fliplr(h2[None, :])
+    h2 = h2[None, None, :, :]
+
+    h1 = h1.repeat(c, 1, 1, 1).to(img.device)
+    h2 = h2.repeat(c, 1, 1, 1).to(img.device)
+
+
+    img_padded = pad(img, [N+1, 0, N , 0], padding_mode='symmetric')
+
+    x1 = conv2d(img_padded, h1, padding='same', groups=c)
+    x1 = x1[:, :, :, N+1:-N]
+
+    x2 = conv2d(img_padded, h2, padding='same', groups=c)
+    x2 = x2[:, :, :, N:-N-1]
+
+    y = torch.zeros((bs, c, h, w * ratio), device=img.device, dtype=img.dtype)
+
+    y[:, :, :, ::ratio] = x2
+    y[:, :, :, 1::ratio] = img
+    y[:, :, :, 2::ratio] = x1
+
+    return y
+
+
+def interp_3x_2d(img, N=50):
+
+    z = interp_3x_1d(img, N)
+    z = interp_3x_1d(z.transpose(2, 3), N)
+    z = z.transpose(2,3)
+    return z
