@@ -158,7 +158,7 @@ def LPfilterGauss(img, ratio):
 
     h = np.real(fir_filter_wind(Hd, h))[:, :, None]
 
-    h = mtf_kernel_to_torch(h).repeat(img.shape[1], 1, 1, 1)
+    h = mtf_kernel_to_torch(h).repeat(img.shape[1], 1, 1, 1).to(img.device)
 
     I_PAN_LP = conv2d(pad(img, (h.shape[-2] // 2, h.shape[-2] // 2, h.shape[-1] // 2, h.shape[-1] // 2), mode='replicate'), h, padding='valid', groups=img.shape[1])
     # I_PAN_LP = ndimage.correlate(I_PAN, np.real(kernel), mode='nearest')
@@ -174,7 +174,7 @@ def mtf(img, sensor, ratio, indexes=None):
         indexes = list(range(h.shape[-1]))
 
     h = h[:,:, indexes]
-    h = mtf_kernel_to_torch(h)
+    h = mtf_kernel_to_torch(h).to(img.device)
     img_lp = conv2d(pad(img, (h.shape[-2] // 2, h.shape[-2] // 2, h.shape[-1] // 2, h.shape[-1] // 2), mode='replicate'), h, padding='valid', groups=img.shape[1])
 
     return img_lp
