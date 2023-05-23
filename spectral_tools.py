@@ -25,7 +25,7 @@ def mtf_kernel_to_torch(h):
     h = torch.from_numpy(h).type(torch.float32)
     return h
 
-def fir_filter_wind(hd, w):
+def fsamp2(hd):
     """
         Compute fir filter with window method
         Parameters
@@ -42,9 +42,41 @@ def fir_filter_wind(hd, w):
     hd = np.rot90(np.fft.fftshift(np.rot90(hd, 2)), 2)
     h = np.fft.fftshift(np.fft.ifft2(hd))
     h = np.rot90(h, 2)
-    h = h * w
-    h = np.clip(h, a_min=0, a_max=np.max(h))
-    h = h / np.sum(h)
+    h = np.real(h)
+
+    return h
+
+def fir_filter_wind(f1, f2):
+    """
+        Compute fir filter with window method
+        Parameters
+        ----------
+        hd : float
+            Desired frequency response (2D)
+        w : Numpy Array
+            The filter kernel (2D)
+        Return
+        ------
+        h : Numpy array
+            The fir Filter
+    """
+
+    hd = f1
+    w1 = f2
+    n = w1.shape[0]
+    m = n
+    t = np.arange(start=-(n-1)/2, stop=(n-1)/2 + 1) * 2/(n-1)
+    t1, t2 = np.meshgrid(t, t)
+    t12 = np.sqrt(t1 ** 2 + t2 ** 2)
+
+    d = np.asarray(((t12 < t[0]) + (t12 > t[-1])).flatten()).nonzero()
+    dd = (t12 < t[0]) + (t12 > t[-1])
+
+    t12[dd] = 0
+
+    w = np.interp(t12.flatten(),t, w1).reshape(t12.shape)
+    w[dd] = 0
+    h = fsamp2(hd) * w
 
     return h
 
@@ -98,16 +130,18 @@ def nyquist_filter_generator(nyquist_freq, ratio, kernel_size):
     fcut = 1 / np.double(ratio)
 
     for j in range(nbands):
-        alpha = np.sqrt(((kernel_size - 1) * (fcut / 2)) ** 2 / (-2 * np.log(nyquist_freq[0,j])))
+        alpha = np.sqrt(((kernel_size - 1) * (fcut / 2)) ** 2 / (-2 * np.log(nyquist_freq[0, j])))
         H = fspecial_gauss((kernel_size, kernel_size), alpha)
         Hd = H / np.max(H)
         h = np.kaiser(kernel_size, 0.5)
-
-        kernel[:, :, j] = np.real(fir_filter_wind(Hd, h))
+        h = np.real(fir_filter_wind(Hd, h))
+        h = np.clip(h, a_min=0, a_max=np.max(h))
+        h = h / np.sum(h)
+        kernel[:, :, j] = h
 
     return kernel
 
-def gen_mtf(ratio, sensor='none', kernel_size=41):
+def gen_mtf(ratio, sensor='none', kernel_size=41, nbands=3):
     """
         Compute the estimated MTF filter kernels for the supported satellites.
         Parameters
@@ -138,7 +172,7 @@ def gen_mtf(ratio, sensor='none', kernel_size=41):
     elif sensor == 'WV3':
         GNyq = [0.325, 0.355, 0.360, 0.350, 0.365, 0.360, 0.335, 0.315] ## TO REMOVE
     else:
-        GNyq = 0.3 * np.ones((1, 3))
+        GNyq = [0.3] * nbands
 
     h = nyquist_filter_generator(GNyq, ratio, kernel_size)
 
@@ -168,14 +202,14 @@ def LPfilterGauss(img, ratio):
     return I_Filtered
 
 
-def mtf(img, sensor, ratio, indexes=None):
-    h = gen_mtf(ratio, sensor)
+def mtf(img, sensor, ratio, indexes=None, mode='replicate'):
+    h = gen_mtf(ratio, sensor, nbands=img.shape[1])
     if indexes == None:
         indexes = list(range(h.shape[-1]))
 
     h = h[:,:, indexes]
     h = mtf_kernel_to_torch(h).to(img.device)
-    img_lp = conv2d(pad(img, (h.shape[-2] // 2, h.shape[-2] // 2, h.shape[-1] // 2, h.shape[-1] // 2), mode='replicate'), h, padding='valid', groups=img.shape[1])
+    img_lp = conv2d(pad(img, (h.shape[-2] // 2, h.shape[-2] // 2, h.shape[-1] // 2, h.shape[-1] // 2), mode=mode), h, padding='valid', groups=img.shape[1])
 
     return img_lp
 
