@@ -45,9 +45,6 @@ def downsample_protocol(img, ratio):
     return img_lr
 
 
-
-
-
 def interp_patches(image_20, image_10_shape):
 
     data20_interp = resize(image_20 / 30000, (image_10_shape[2:4]), interpolation=InterpolationMode.BILINEAR) * 30000  # bilinear
