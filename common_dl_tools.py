@@ -1,10 +1,10 @@
 import os.path
-
 from osgeo import gdal
 import torch
 from torch.utils.data import Dataset
 import yaml
-from collections import namedtuple
+from recordclass import recordclass
+
 
 def read_yaml(file_path):
     with open(file_path, "r") as f:
@@ -12,7 +12,7 @@ def read_yaml(file_path):
 
 def open_config(file_path):
     yaml_file = read_yaml(file_path)
-    return namedtuple('config', yaml_file.keys())(*yaml_file.values())
+    return recordclass('config', yaml_file.keys())(*yaml_file.values())
 
 def open_tiff(path):
     bands = gdal.Open(path)
