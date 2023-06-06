@@ -160,7 +160,7 @@ def gen_mtf(ratio, sensor='none', kernel_size=41, nbands=3):
     if sensor == 'S2-10':
         GNyq = [0.275, 0.28, 0.25, 0.24]
     elif sensor == 'S2-10-PAN':
-        GNyq = [0.26125] * 6
+        GNyq = [0.26125] * nbands
     elif sensor == 'S2-20':
         GNyq = [0.365, 0.33, 0.34, 0.32, 0.205, 0.235]
     elif sensor == 'S2-60':
