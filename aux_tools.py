@@ -23,6 +23,8 @@ def batch_cov(points):
     return bcov  # (B, D, D)
 
 def regress(y, X):
+    y = y.double()
+    X = X.double()
 
     Q, R = torch.linalg.qr(X)
     """
