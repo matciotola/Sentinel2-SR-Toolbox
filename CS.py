@@ -9,6 +9,25 @@ from spectral_tools import LPFilterPlusDecTorch, LPfilterGauss
 from aux_tools import estimation_alpha, regress, batch_cov
 
 
+def BDSD(ordered_dict):
+    bands_low = torch.clone(ordered_dict.bands_low)
+    bands_high = torch.clone(ordered_dict.bands_high)
+    indexes = ordered_dict.bands_selection
+    ratio = ordered_dict.ratio
+    ind = ordered_dict.ind
+
+    bands_low_lr_lp, bands_low_lr, bands_high_lr = prepro_BDSD(bands_low, bands_high, [indexes[ind]], 2, bands_low.shape[-1], ordered_dict.mtf_high_name, ordered_dict.mtf_low_name)
+    fused = []
+    for i in range(bands_low.shape[1]):
+        gamma = gamma_calculation_BDSD(bands_low_lr_lp[:, i, None, :, :], bands_low_lr[:, i, None, :, :], bands_high_lr, ratio, bands_low.shape[-1])
+        fused.append(fuse_BDSD(bands_low[:, i, None, :, :], bands_high, gamma, ratio, bands_low.shape[-1]))
+
+    fused = torch.cat(fused, dim=1)
+
+    return fused
+
+
+
 def prepro_BDSD(bands_low, bands_high, indexes, ratio, block_size, high_sensor='S2_10', low_sensor='S2_20'):
     assert (block_size % 2 == 0), f"block size for local estimation must be even"
     assert (block_size > 1), f"block size for local estimation must be positive"
@@ -120,11 +139,15 @@ def compH_injection(img, S):
     return hlow_en
 
 
-def GS(bands_low, band_high):
+def GS(ordered_dict):
+
+    bands_low = torch.clone(ordered_dict.bands_low)
+    bands_high = torch.clone(ordered_dict.bands_high)
+
     bands_low_minus_avg = bands_low - bands_low.mean(dim=(-2, -1), keepdim=True)
     bands_low_minus_int = bands_low.mean(dim=1, keepdim=True) - bands_low.mean(dim=(1, 2, 3), keepdim=True)
-    band_high = (band_high - band_high.mean(dim=(1, 2, 3), keepdim=True)) * (
-                bands_low_minus_int.std(dim=(1, 2, 3)) / band_high.std(dim=(1, 2, 3))) + bands_low_minus_int.mean(
+    bands_high = (bands_high - bands_high.mean(dim=(1, 2, 3), keepdim=True)) * (
+                bands_low_minus_int.std(dim=(1, 2, 3)) / bands_high.std(dim=(1, 2, 3))) + bands_low_minus_int.mean(
         dim=(2, 3), keepdim=True)
     chain = torch.cat([torch.flatten(bands_low_minus_int.repeat(1, bands_low.shape[1], 1, 1), start_dim=-2),
                        torch.flatten(bands_low_minus_avg, start_dim=-2)], dim=1)
@@ -132,7 +155,7 @@ def GS(bands_low, band_high):
     g = torch.ones(1, bands_low.shape[1] + 1, 1)
     g[:, 1:, :] = cc[:, 0, 1] / bands_low_minus_int.var(dim=(1, 2, 3))
 
-    delta = band_high - bands_low_minus_int
+    delta = bands_high - bands_low_minus_int
     delta_flatten = torch.flatten(delta, start_dim=-2)
     delta_r = delta_flatten.repeat(1, bands_low.shape[1] + 1, 1)
 
@@ -152,9 +175,15 @@ def GS(bands_low, band_high):
     return fused
 
 
-def GSA(bands_low, bands_high, bands_low_orig, ratio):
+def GSA(ordered_dict):
+
+    bands_low = torch.clone(ordered_dict.bands_low)
+    bands_high = torch.clone(ordered_dict.bands_high)
+    bands_low_lr = torch.clone(ordered_dict.bands_low_lr)
+    ratio = ordered_dict.ratio
+
     bands_low_interp_minus_avg = bands_low - torch.mean(bands_low, dim=(2, 3), keepdim=True)
-    bands_low_minus_avg = bands_low_orig - torch.mean(bands_low_orig, dim=(2, 3), keepdim=True)
+    bands_low_minus_avg = bands_low_lr - torch.mean(bands_low_lr, dim=(2, 3), keepdim=True)
     bands_high_minus_avg = bands_high - torch.mean(bands_high, dim=(2, 3), keepdim=True)
 
     bands_high_minus_avg = LPFilterPlusDecTorch(bands_high_minus_avg, ratio)
@@ -171,10 +200,10 @@ def GSA(bands_low, bands_high, bands_low_orig, ratio):
 
     bands_low_minus_int = img - torch.mean(img, dim=(2, 3))
 
-    chain = torch.cat([torch.flatten(bands_low_minus_int.repeat(1, bands_low_orig.shape[1], 1, 1), start_dim=-2),
+    chain = torch.cat([torch.flatten(bands_low_minus_int.repeat(1, bands_low_lr.shape[1], 1, 1), start_dim=-2),
                        torch.flatten(bands_low_interp_minus_avg, start_dim=-2)], dim=1)
     cc = batch_cov(chain.transpose(1, 2))
-    g = torch.ones(1, bands_low_orig.shape[1] + 1, 1)
+    g = torch.ones(1, bands_low_lr.shape[1] + 1, 1)
     g[:, 1:, :] = cc[:, 0, 1] / bands_low_minus_int.var(dim=(1, 2, 3))
 
     bands_high = bands_high - torch.mean(bands_high, dim=(2, 3))
@@ -182,7 +211,7 @@ def GSA(bands_low, bands_high, bands_low_orig, ratio):
     delta = bands_high - bands_low_minus_int
 
     delta_flatten = torch.flatten(delta, start_dim=-2)
-    delta_r = delta_flatten.repeat(1, bands_low_orig.shape[1] + 1, 1)
+    delta_r = delta_flatten.repeat(1, bands_low_lr.shape[1] + 1, 1)
 
     v1 = torch.flatten(bands_low_minus_int, start_dim=-2)
     v2 = torch.flatten(bands_low_interp_minus_avg, start_dim=-2)
@@ -199,7 +228,10 @@ def GSA(bands_low, bands_high, bands_low_orig, ratio):
     return fused
 
 
-def BT_H(bands_low, bands_high, ratio):
+def BT_H(ordered_dict):
+    bands_low = torch.clone(ordered_dict.bands_low)
+    bands_high = torch.clone(ordered_dict.bands_high)
+    ratio = ordered_dict.ratio
 
     min_bands_low = torch.amin(bands_low, dim=(2, 3), keepdim=True)
 
@@ -223,7 +255,11 @@ def BT_H(bands_low, bands_high, ratio):
 
 
 
-def PRACS(bands_low, bands_high, ratio, beta=0.95):
+def PRACS(ordered_dict, beta=0.95):
+    bands_low = torch.clone(ordered_dict.bands_low)
+    bands_high = torch.clone(ordered_dict.bands_high)
+    ratio = ordered_dict.ratio
+
     B, C, H, W = bands_low.shape
 
     bands_low_hm = (bands_low - torch.mean(bands_low, dim=(2, 3), keepdim=True) + torch.mean(bands_high, dim=(2, 3),

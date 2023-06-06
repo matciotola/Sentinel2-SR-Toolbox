@@ -5,13 +5,30 @@ from torch.utils.data import DataLoader
 
 from tqdm import tqdm
 
-from network import DSen2Model
+try:
+    from network import DSen2Model
+    from image_processing import normalize, denormalize, input_prepro, input_prepro60, get_test_patches, \
+        get_test_patches60, recompose_images
+except:
+    from DSen2.network import DSen2Model
+    from DSen2.image_processing import normalize, denormalize, input_prepro, input_prepro60, get_test_patches, \
+        get_test_patches60, recompose_images
+
 from common_dl_tools import open_config, generate_paths, TrainingDataset20m, TrainingDataset60m
-from image_processing import normalize, denormalize, input_prepro, input_prepro60, get_test_patches, get_test_patches60, recompose_images
+
 from FUSE.aux_net_fuse import get_patches # TO DO LANARAS?
 
 
-def DSen2_20(bands_high, bands_low):
+def DSen2(ordered_dict):
+
+    if ordered_dict.bands_intermediate == None:
+        return DSen2_20(ordered_dict)
+    else:
+        return DSen2_60(ordered_dict)
+
+def DSen2_20(ordered_dict):
+    bands_high = torch.clone(ordered_dict.bands_high)
+    bands_low = torch.clone(ordered_dict.bands_low)
 
     config_path = 'config.yaml'
     config = open_config(config_path)
@@ -75,7 +92,12 @@ def DSen2_20(bands_high, bands_low):
     return fused
 
 
-def DSen2_60(bands_high, bands_intermediate, bands_low):
+def DSen2_60(ordered_dict):
+
+    bands_high = torch.clone(ordered_dict.bands_high)
+    bands_intermediate = torch.clone(ordered_dict.bands_intermediate)
+    bands_low = torch.clone(ordered_dict.bands_low)
+
     config_path = 'config.yaml'
     config = open_config(config_path)
     ratio = 2
