@@ -1,5 +1,10 @@
 
-pan_generation: ['Synthetic', 'Selected']
+bands_sr: ['20']
 
-model_based_algorithms: ['BDSD', 'GS', 'GSA', 'BT-H', 'PRACS', 'AWLP', 'MTF-GLP', 'MTF-GLP-FS', 'MTF-GLP-HPM', 'MTF-GLP-HPM-H', 'MTF-GLP-HPM-R']
+pan_generation: ['synthesize', 'selection']
+
+pansharpening_based_algorithms: ['BDSD', 'GS', 'GSA', 'BT-H', 'PRACS', 'AWLP', 'MTF-GLP', 'MTF-GLP-FS', 'MTF-GLP-HPM', 'MTF-GLP-HPM-H', 'MTF-GLP-HPM-R']
+
+tiff_root: '/media/matteo/T7/Dataset_Ugliano/'
+tiff_images: ['S2A_MSIL1C_20190922T025541_N0208_R032_T50QKK_20190922T060638_00048']
 
