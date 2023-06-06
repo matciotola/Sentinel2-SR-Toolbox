@@ -1,5 +1,6 @@
 import os
 import torch
+import numpy as np
 
 import copy
 
@@ -10,6 +11,7 @@ from MRA import AWLP, MTF_GLP, MTF_GLP_FS, MTF_GLP_HPM, MTF_GLP_HPM_H, MTF_GLP_H
 from DSen2.DSen2 import DSen2
 from common_dl_tools import generate_paths, open_tiff
 from recordclass import recordclass
+import utils as ut
 
 pansharpening_algorithm_dict = {'BDSD': BDSD, 'GS': GS, 'GSA': GSA, 'BT-H': BT_H, 'PRACS': PRACS, 'AWLP': AWLP, 'MTF-GLP': MTF_GLP, 'MTF-GLP-FS': MTF_GLP_FS, 'MTF-GLP-HPM': MTF_GLP_HPM, 'MTF-GLP-HPM-H': MTF_GLP_HPM_H, 'MTF-GLP-HPM-R': MTF_GLP_HPM_R}
 ad_hoc_algorithm_dict = {'DSen2': DSen2}
@@ -51,10 +53,12 @@ if __name__ == '__main__':
     from common_dl_tools import open_config
     from interpolator_tools import interp23tap_torch
 
-    config_path = 'config.yaml'
+    config_path = 'preambol.yaml'
     config = open_config(config_path)
 
     paths_10, paths_20, paths_60 = generate_paths(config.tiff_root, config.tiff_images)
+
+    geo_info = ut.extract_info(paths_10[0])
 
     for experiment in config.bands_sr:
         if experiment == '20':
@@ -87,4 +91,9 @@ if __name__ == '__main__':
 
                     method = pansharpening_algorithm_dict[algorithm]
                     fused = pansharp_method(method, exp_input)
+
+                    if config.save_results:
+                        save_root = os.path.join(config.save_root, config.tiff_images[0])
+                        ut.save_tiff(np.squeeze(fused.numpy(), axis=0), save_root, algorithm + '_' + generator + '.tiff', geo_info)
+
 
