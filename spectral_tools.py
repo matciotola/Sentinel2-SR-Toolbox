@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import torch
 import numpy as np
 from torch.nn.functional import conv2d, pad
