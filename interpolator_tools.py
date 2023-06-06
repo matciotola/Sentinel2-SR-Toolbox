@@ -62,7 +62,7 @@ def interp23tap(img, ratio):
     return img
 
 
-def interp23tap_torch(img, ratio, device):
+def interp23tap_torch(img, ratio):
     """
         A PyTorch implementation of the Polynomial interpolator Function.
 
@@ -92,7 +92,7 @@ def interp23tap_torch(img, ratio, device):
            The interpolated img.
 
     """
-
+    device = img.device
     assert ((2 ** (round(math.log(ratio, 2)))) == ratio), 'Error: Only resize factors power of 2'
 
     bs, b, r, c = img.shape
