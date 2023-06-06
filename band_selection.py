@@ -72,5 +72,7 @@ def synthesize(bands_high, bands_low,  ratio, sat_name='S2-10'):
 
     synthesized_bands = torch.cat(synthesized_bands, dim=1)
 
-    return synthesized_bands
+    selected_bands = list(range(bands_low.shape[1]))
+
+    return synthesized_bands, selected_bands
 
