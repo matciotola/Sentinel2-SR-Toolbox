@@ -1,0 +1,223 @@
+import os
+from scipy import io
+import torch
+from torch.utils.data import DataLoader
+
+from tqdm import tqdm
+
+from network import DSen2Model
+from common_dl_tools import open_config, generate_paths, TrainingDataset20m, TrainingDataset60m
+from image_processing import normalize, denormalize, input_prepro, input_prepro60, get_test_patches, get_test_patches60, recompose_images
+from FUSE.aux_net_fuse import get_patches # TO DO LANARAS?
+
+
+def DSen2_20(bands_high, bands_low):
+
+    config_path = 'config.yaml'
+    config = open_config(config_path)
+    ratio = 2
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = config.gpu_number
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    model_weights_path = config.model_weights_path
+
+    net = DSen2Model((config.number_bands_10, config.number_bands_20))
+
+    if not config.train or config.resume:
+        if not model_weights_path:
+            model_weights_path = os.path.join('weights', 'DSen2_20m.tar')
+        net.load_state_dict(torch.load(model_weights_path))
+
+    net = net.to(device)
+
+    if config.train:
+        train_paths_10, train_paths_20, _ = generate_paths(config.training_img_root, config.training_img_names)
+        ds_train = TrainingDataset20m(train_paths_10, train_paths_20, normalize, input_prepro, get_patches, ratio, config.training_patch_size_20)
+        train_loader = DataLoader(ds_train, batch_size=config.batch_size, shuffle=True)
+
+        if len(config.validation_img_names) != 0:
+            val_paths_10, val_paths_20, _ = generate_paths(config.validation_img_root, config.validation_img_names)
+            ds_val = TrainingDataset20m(val_paths_10, val_paths_20, normalize, input_prepro, get_patches, ratio, config.training_patch_size_20)
+            val_loader = DataLoader(ds_val, batch_size=config.batch_size, shuffle=True)
+        else:
+            val_loader = None
+
+        net, history = train(net, train_loader, val_loader)
+
+        if config.save_weights:
+            torch.save(net.state_dict(), config.save_weights_path)
+
+        if config.save_training_stats:
+            if not os.path.exists('./Stats/DSen2'):
+                os.makedirs('./Stats/DSen2')
+            io.savemat('./Stats/DSen2/Training_20m.mat', history)
+
+
+    bands_high_norm = normalize(bands_high)
+    bands_low_norm = normalize(bands_low)
+
+    patches_10, patches_20 = get_test_patches(bands_high_norm, bands_low_norm, patchSize=128, border=config.border)
+
+    output = []
+
+    with torch.no_grad():
+        for i in range(len(patches_10)):
+            input_10 = patches_10[i].unsqueeze(0).to(device)
+            input_20 = patches_20[i].unsqueeze(0).to(device)
+            output.append(net(input_10, input_20))
+
+    output = torch.cat(output, dim=0)
+
+    fused = recompose_images(output, config.border, bands_high.shape)
+    fused = denormalize(fused)
+
+    return fused
+
+
+def DSen2_60(bands_high, bands_intermediate, bands_low):
+    config_path = 'config.yaml'
+    config = open_config(config_path)
+    ratio = 2
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = config.gpu_number
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    model_weights_path = config.model_weights_path
+
+    net = DSen2Model((config.number_bands_10, config.number_bands_20))
+
+    if not config.train or config.resume:
+        if not model_weights_path:
+            model_weights_path = os.path.join('weights', 'DSen2_20m.tar')
+        net.load_state_dict(torch.load(model_weights_path))
+
+    net = net.to(device)
+
+    if config.train:
+        train_paths_10, train_paths_20, train_paths_60 = generate_paths(config.training_img_root, config.training_img_names)
+        ds_train = TrainingDataset60m(train_paths_10, train_paths_20, train_paths_60, normalize, input_prepro60, get_patches, ratio,
+                                      config.training_patch_size_60)
+        train_loader = DataLoader(ds_train, batch_size=config.batch_size, shuffle=True)
+
+        if len(config.validation_img_names) != 0:
+            val_paths_10, val_paths_20, val_paths_60 = generate_paths(config.validation_img_root, config.validation_img_names)
+            ds_val = TrainingDataset60m(val_paths_10, val_paths_20, val_paths_60, normalize, input_prepro60, get_patches, ratio,
+                                        config.training_patch_size_60)
+            val_loader = DataLoader(ds_val, batch_size=config.batch_size, shuffle=True)
+        else:
+            val_loader = None
+
+        net, history = train(net, train_loader, val_loader)
+
+        if config.save_weights:
+            torch.save(net.state_dict(), config.save_weights_path)
+
+        if config.save_training_stats:
+            if not os.path.exists('./Stats/DSen2'):
+                os.makedirs('./Stats/DSen2')
+            io.savemat('./Stats/DSen2/Training_60m.mat', history)
+
+    bands_high_norm = normalize(bands_high)
+    bands_intermediate_norm = normalize(bands_intermediate)
+    bands_low_norm = normalize(bands_low)
+
+    patches_10, patches_20, patches_60 = get_test_patches60(bands_high_norm, bands_intermediate_norm, bands_low_norm, patchSize=128, border=config.border)
+
+    output = []
+
+    with torch.no_grad():
+        for i in range(len(patches_10)):
+            input_10 = patches_10[i].unsqueeze(0).to(device)
+            input_20 = patches_20[i].unsqueeze(0).to(device)
+            input_60 = patches_60[i].unsqueeze(0).to(device)
+            output.append(net(input_10, input_20, input_60))
+
+    output = torch.cat(output, dim=0)
+
+    fused = recompose_images(output, config.border, bands_high.shape)
+    fused = denormalize(fused)
+
+    return fused
+
+
+def train(net, train_loader, config, val_loader=None):
+
+    criterion = torch.nn.L1Loss(reduction='mean').to(net.device)
+    metric = torch.nn.MSELoss(reduction='mean').to(net.device)
+    optim = torch.optim.NAdam(net.parameters(), lr=config.lr, betas=(config.beta1, config.beta2), eps=config.epislon, weight_decay=config.weight_decay)
+
+    history_loss = []
+    history_metric = []
+    history_val_loss = []
+    history_val_metric = []
+
+    pbar = tqdm(range(config.epochs))
+
+    for epoch in pbar:
+
+        pbar.set_description('Epoch %d/%d' % (epoch + 1, config.epochs))
+        running_loss = 0.0
+        running_metric = 0.0
+
+        running_val_loss = 0.0
+        running_val_metric = 0.0
+
+        net.train()
+
+        for i, data in enumerate(train_loader):
+
+            optim.zero_grad()
+            if len(data) == 3:
+                inputs_10, inputs_20, labels = data
+            else:
+                inputs_10, inputs_20, inputs_60, labels = data
+                inputs_60 = inputs_60.to(net.device)
+
+            inputs_10 = inputs_10.to(net.device)
+            inputs_20 = inputs_20.to(net.device)
+            labels = labels.to(net.device)
+
+            if len(data) == 3:
+                outputs = net(inputs_10, inputs_20)
+            else:
+                outputs = net(inputs_10, inputs_20, inputs_60)
+
+            loss = criterion(outputs, labels)
+            with torch.no_grad():
+                mse = metric(outputs, labels)
+            loss.backward()
+            optim.step()
+            running_loss += loss.item()
+            running_metric += mse.item()
+
+        running_loss = running_loss / len(train_loader)
+        running_metric = running_metric / len(train_loader)
+
+        if val_loader is not None:
+            net.eval()
+            with torch.no_grad():
+                for i, data in enumerate(val_loader):
+                    inputs, labels = data
+                    inputs = inputs.to(net.device)
+                    labels = labels.to(net.device)
+                    outputs = net(inputs)
+                    val_loss = criterion(outputs, labels)
+                    val_mse = metric(outputs, labels)
+                    running_val_loss += val_loss.item()
+                    running_val_metric += val_mse.item()
+
+            running_val_loss = running_val_loss / len(val_loader)
+            running_val_metric = running_val_metric / len(val_loader)
+
+        history_loss.append(running_loss)
+        history_metric.append(running_metric)
+        history_val_loss.append(running_val_loss)
+        history_val_metric.append(running_val_metric)
+
+        pbar.set_postfix({'loss': running_loss, 'metric': running_metric, 'val_loss': running_val_loss, 'val_metric': running_val_metric})
+
+    history = {'loss': history_loss, 'metric': history_metric, 'val_loss': history_val_loss, 'val_metric': history_val_metric}
+
+    return net, history
+
