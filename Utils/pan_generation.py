@@ -1,5 +1,5 @@
 import torch
-from spectral_tools import gen_mtf, mtf_kernel_to_torch
+from Utils.spectral_tools import gen_mtf, mtf_kernel_to_torch
 from torch.nn.functional import conv2d, pad
 
 def selection(bands_high, bands_low, ratio, sat_name='S2-10'):
@@ -42,7 +42,7 @@ def synthesize(bands_high, bands_low,  ratio, sat_name='S2-10'):
 
     scale = 1 / ratio
 
-    h = mtf_kernel_to_torch(gen_mtf(ratio, sat_name)).to(bands_high.device)
+    h = mtf_kernel_to_torch(gen_mtf(ratio, sat_name)).type(bands_high.dtype).to(bands_high.device)
     bands_high_lpf = conv2d(
                             pad(bands_high, (h.shape[-1] // 2,
                                              h.shape[-1] // 2,

@@ -151,8 +151,8 @@ def interp_3x_1d(img, N=50):
     h2 = torch.fliplr(h2[None, :])
     h2 = h2[None, None, :, :]
 
-    h1 = h1.repeat(c, 1, 1, 1).to(img.device)
-    h2 = h2.repeat(c, 1, 1, 1).to(img.device)
+    h1 = h1.repeat(c, 1, 1, 1).type(img.dtype).to(img.device)
+    h2 = h2.repeat(c, 1, 1, 1).type(img.dtype).to(img.device)
 
 
     img_padded = pad(img, [N+1, 0, N , 0], padding_mode='symmetric')
@@ -176,5 +176,16 @@ def interp_3x_2d(img, N=50):
 
     z = interp_3x_1d(img, N)
     z = interp_3x_1d(z.transpose(2, 3), N)
-    z = z.transpose(2,3)
+    z = z.transpose(2, 3)
     return z
+
+
+def ideal_interpolator(img, ratio):
+
+    if ratio == 2:
+        img_upsampled = interp23tap_torch(img, ratio)
+    else:
+        img_upsampled = interp_3x_2d(img)
+        img_upsampled = interp23tap_torch(img_upsampled, 2)
+
+    return img_upsampled

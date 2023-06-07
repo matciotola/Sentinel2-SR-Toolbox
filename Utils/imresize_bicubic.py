@@ -10,8 +10,7 @@ The resulting values are the same to MATLAB function imresize('bicubic').
 Depencency: torch
 
 Example::
->>> import torch
->>> import imresize_bicubic
+>>> from Utils import imresize_bicubic import torch
 >>> x = torch.arange(16).float().view(1, 1, 4, 4)
 >>> y = core.imresize(x, sizes=(3, 3))
 >>> print(y)

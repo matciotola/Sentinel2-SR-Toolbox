@@ -190,7 +190,7 @@ def LPfilterGauss(img, ratio):
 
     h = np.real(fir_filter_wind(Hd, h))[:, :, None]
 
-    h = mtf_kernel_to_torch(h).repeat(img.shape[1], 1, 1, 1).to(img.device)
+    h = mtf_kernel_to_torch(h).repeat(img.shape[1], 1, 1, 1).type(img.dtype).to(img.device)
 
     I_PAN_LP = conv2d(pad(img, (h.shape[-2] // 2, h.shape[-2] // 2, h.shape[-1] // 2, h.shape[-1] // 2), mode='replicate'), h, padding='valid', groups=img.shape[1])
     # I_PAN_LP = ndimage.correlate(I_PAN, np.real(kernel), mode='nearest')
@@ -206,7 +206,7 @@ def mtf(img, sensor, ratio, indexes=None, mode='replicate'):
         indexes = list(range(h.shape[-1]))
 
     h = h[:,:, indexes]
-    h = mtf_kernel_to_torch(h).to(img.device)
+    h = mtf_kernel_to_torch(h).type(img.dtype).to(img.device)
     img_lp = conv2d(pad(img, (h.shape[-2] // 2, h.shape[-2] // 2, h.shape[-1] // 2, h.shape[-1] // 2), mode=mode), h, padding='valid', groups=img.shape[1])
 
     return img_lp
@@ -295,7 +295,10 @@ def LPFilterPlusDecTorch(img, ratio):
     from Wavelet.SWT import SWTForward, SWTInverse
     import pywt
     levels = ceil(log2(ratio))
-    filters = pywt.Wavelet(filter_bank=tuple(starck_and_murtagh_filters()))
+
+    h1, g1, h2, g2 = starck_and_murtagh_filters()
+    filter_bank = (h1.astype(np.float64), g1.astype(np.float64), h2.astype(np.float64), g2.astype(np.float64))
+    filters = pywt.Wavelet(filter_bank=filter_bank)
 
     wave = SWTForward(J=levels, wave=filters)
     wave_img = wave(img)
