@@ -14,7 +14,7 @@ except:
     from DSen2.image_processing import normalize, denormalize, input_prepro, input_prepro60, get_test_patches, \
         get_test_patches60, recompose_images
 
-from common_dl_tools import open_config, generate_paths, TrainingDataset20m, TrainingDataset60m
+from Utils.dl_tools import open_config, generate_paths, TrainingDataset20m, TrainingDataset60m
 
 from FUSE.aux_net_fuse import get_patches # TO DO LANARAS?
 
