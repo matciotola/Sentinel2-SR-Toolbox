@@ -193,7 +193,7 @@ def afb1d_atrous(x, h0, h1, mode='symmetric', dim=-1, dilation=1):
     pad = (0, 0, L2-dilation, L2) if d == 2 else (L2-dilation, L2, 0, 0)
     #ipdb.set_trace()
     x = mypad(x, pad=pad, mode=mode)
-    lohi = F.conv2d(x, h, groups=C, dilation=dilation)
+    lohi = F.conv2d(x, h.type(x.dtype).to(x.device), groups=C, dilation=dilation)
 
     return lohi
 
@@ -251,10 +251,10 @@ def sfb1d_atrous(lo, hi, g0, g1, mode='symmetric', dim=-1, dilation=1,
     # are in the right order
     if not isinstance(g0, torch.Tensor):
         g0 = torch.tensor(np.copy(np.array(g0).ravel()),
-                          dtype=torch.float, device=lo.device)
+                          dtype=lo.dtype, device=lo.device)
     if not isinstance(g1, torch.Tensor):
         g1 = torch.tensor(np.copy(np.array(g1).ravel()),
-                          dtype=torch.float, device=lo.device)
+                          dtype=lo.dtype, device=lo.device)
     L = g0.numel()
     shape = [1,1,1,1]
     shape[d] = L
@@ -265,6 +265,9 @@ def sfb1d_atrous(lo, hi, g0, g1, mode='symmetric', dim=-1, dilation=1,
         g1 = g1.reshape(*shape)
     g0 = torch.cat([g0]*C,dim=0)
     g1 = torch.cat([g1]*C,dim=0)
+
+    g0 = g0.type(lo.dtype).to(lo.device)
+    g1 = g1.type(lo.dtype).to(lo.device)
 
     # Calculate the padding size.
     # With dilation, zeros are inserted between the filter taps but not after.
