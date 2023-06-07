@@ -4,16 +4,24 @@ import numpy as np
 
 import copy
 
-from band_selection import selection, synthesize
+from Utils.pan_generation import selection, synthesize
 
-from CS import BDSD, GS, GSA, BT_H, PRACS
-from MRA import AWLP, MTF_GLP, MTF_GLP_FS, MTF_GLP_HPM, MTF_GLP_HPM_H, MTF_GLP_HPM_R
+from CS.PRACS import PRACS
+from CS.Brovey import BT_H
+from CS.BDSD import BDSD
+from CS.GS import GS, GSA
+from MRA.GLP import MTF_GLP, MTF_GLP_FS, MTF_GLP_HPM, MTF_GLP_HPM_H, MTF_GLP_HPM_R
+from MRA.AWLP import AWLP
 from DSen2.DSen2 import DSen2
-from common_dl_tools import generate_paths, open_tiff
+from Utils.dl_tools import generate_paths, open_tiff
 from recordclass import recordclass
-import utils as ut
+from Utils import load_save_tools as ut
 
-pansharpening_algorithm_dict = {'BDSD': BDSD, 'GS': GS, 'GSA': GSA, 'BT-H': BT_H, 'PRACS': PRACS, 'AWLP': AWLP, 'MTF-GLP': MTF_GLP, 'MTF-GLP-FS': MTF_GLP_FS, 'MTF-GLP-HPM': MTF_GLP_HPM, 'MTF-GLP-HPM-H': MTF_GLP_HPM_H, 'MTF-GLP-HPM-R': MTF_GLP_HPM_R}
+pansharpening_algorithm_dict = {'BDSD': BDSD, 'GS': GS, 'GSA': GSA, 'BT-H': BT_H, 'PRACS': PRACS, # Component substitution
+                                'AWLP': AWLP, 'MTF-GLP': MTF_GLP, 'MTF-GLP-FS': MTF_GLP_FS, # Multi-Resolution analysis
+                                'MTF-GLP-HPM': MTF_GLP_HPM, 'MTF-GLP-HPM-H': MTF_GLP_HPM_H, # Multi-Resolution analysis
+                                'MTF-GLP-HPM-R': MTF_GLP_HPM_R # Multi-Resolution analysis
+                                }
 ad_hoc_algorithm_dict = {'DSen2': DSen2}
 
 pan_generation_dict = {'selection': selection, 'synthesize': synthesize}
@@ -24,7 +32,9 @@ def pansharp_method(method, input_info):
 
     fused = []
 
-    bands_high = torch.clone(exp_input.bands_high)
+    bands_high = torch.clone(exp_input.bands_high).double()
+    exp_input.bands_low = exp_input.bands_low.double()
+    exp_input.bands_low_lr = exp_input.bands_low_lr.double()
 
     for i in range(bands_high.shape[1]):
         exp_input.bands_high = bands_high[:, i:i + 1, :, :]
@@ -50,8 +60,8 @@ def main(args):
 
 
 if __name__ == '__main__':
-    from common_dl_tools import open_config
-    from interpolator_tools import interp23tap_torch
+    from Utils.dl_tools import open_config
+    from Utils.interpolator_tools import ideal_interpolator
 
     config_path = 'preambol.yaml'
     config = open_config(config_path)
@@ -60,17 +70,28 @@ if __name__ == '__main__':
 
     geo_info = ut.extract_info(paths_10[0])
 
-    for experiment in config.bands_sr:
-        if experiment == '20':
+    for scale in config.bands_sr:
+        if scale == '20':
             exp_info = {'ratio': 2, 'mtf_low_name': 'S2-20'}
 
             bands_high = open_tiff(paths_10[0])
             bands_low_lr = open_tiff(paths_20[0])
-            bands_low = interp23tap_torch(bands_low_lr, exp_info['ratio'])
+            bands_low = ideal_interpolator(bands_low_lr, exp_info['ratio'])
+            bands_intermediate = None
+
+        else:
+            exp_info = {'ratio': 6, 'mtf_low_name': 'S2-60'}
+
+            bands_high = open_tiff(paths_10[0])
+            bands_low_lr = open_tiff(paths_60[0])
+            bands_low = ideal_interpolator(bands_low_lr, exp_info['ratio'])
+            bands_intermediate = open_tiff(paths_20[0])
 
 
-            exp_info['bands_low_lr'] = bands_low_lr
-            exp_info['bands_low'] = bands_low
+
+        exp_info['bands_low_lr'] = bands_low_lr
+        exp_info['bands_low'] = bands_low
+        exp_info['bands_intermediate'] = bands_intermediate
 
         for generator in config.pan_generation:
                 gen = pan_generation_dict[generator]
@@ -93,7 +114,7 @@ if __name__ == '__main__':
                     fused = pansharp_method(method, exp_input)
 
                     if config.save_results:
-                        save_root = os.path.join(config.save_root, config.tiff_images[0])
+                        save_root = os.path.join(config.save_root, scale, config.tiff_images[0])
                         ut.save_tiff(np.squeeze(fused.numpy(), axis=0), save_root, algorithm + '_' + generator + '.tiff', geo_info)
 
 
