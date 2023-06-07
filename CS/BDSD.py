@@ -13,7 +13,7 @@ def BDSD(ordered_dict):
     ratio = ordered_dict.ratio
     ind = ordered_dict.ind
 
-    bands_low_lr_lp, bands_low_lr, bands_high_lr = prepro_BDSD(bands_low, bands_high, [indexes[ind]], 2, bands_low.shape[-1], ordered_dict.mtf_high_name, ordered_dict.mtf_low_name)
+    bands_low_lr_lp, bands_low_lr, bands_high_lr = prepro_BDSD(bands_low, bands_high, [indexes[ind]], ratio, bands_low.shape[-1], ordered_dict.mtf_high_name, ordered_dict.mtf_low_name)
     fused = []
     for i in range(bands_low.shape[1]):
         gamma = gamma_calculation_BDSD(bands_low_lr_lp[:, i, None, :, :], bands_low_lr[:, i, None, :, :], bands_high_lr, ratio, bands_low.shape[-1])
