@@ -28,7 +28,7 @@ def DSen2(ordered_dict):
 
 def DSen2_20(ordered_dict):
     bands_high = torch.clone(ordered_dict.bands_high)
-    bands_low = torch.clone(ordered_dict.bands_low)
+    bands_low_lr = torch.clone(ordered_dict.bands_low_lr)
 
     config_path = 'config.yaml'
     config = open_config(config_path)
@@ -72,9 +72,9 @@ def DSen2_20(ordered_dict):
 
 
     bands_high_norm = normalize(bands_high)
-    bands_low_norm = normalize(bands_low)
+    bands_low_lr_norm = normalize(bands_low_lr)
 
-    patches_10, patches_20 = get_test_patches(bands_high_norm, bands_low_norm, patchSize=128, border=config.border)
+    patches_10, patches_20 = get_test_patches(bands_high_norm, bands_low_lr_norm, patchSize=128, border=config.border)
 
     output = []
 
