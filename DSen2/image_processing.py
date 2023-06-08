@@ -3,8 +3,10 @@ from skimage.transform import resize
 import torch
 from typing import Tuple
 from torchvision.transforms import InterpolationMode
-from torchvision.transforms.functional import resize, gaussian_blur
+from torchvision.transforms.functional import resize, gaussian_blur, pad
 from torch.nn.functional import avg_pool2d
+
+from math import ceil
 
 
 def normalize(img, scale=2000):
@@ -49,7 +51,7 @@ def downsample_protocol(img, ratio):
 
 def interp_patches(bands_low, bands_high_shape):
     data20_interp = resize(bands_low / 30000, (bands_high_shape[2:4]),
-                           interpolation=InterpolationMode.BILINEAR) * 30000  # bilinear
+                           interpolation=InterpolationMode.BILINEAR, antialias=True) * 30000  # bilinear
     return data20_interp
 
 
@@ -60,8 +62,8 @@ def get_test_patches(dset_10, dset_20, patchSize=128, border=4, interp=True):
     BORDER_LR = BORDER_HR // 2
 
     # Mirror the data at the borders to have the same dimensions as the input
-    dset_10 = symm_pad(dset_10, (BORDER_HR, BORDER_HR, BORDER_HR, BORDER_HR))
-    dset_20 = symm_pad(dset_20, (BORDER_LR, BORDER_LR, BORDER_LR, BORDER_LR))
+    dset_10 = pad(dset_10, (BORDER_HR, BORDER_HR, BORDER_HR, BORDER_HR), padding_mode='symmetric')
+    dset_20 = pad(dset_20, (BORDER_LR, BORDER_LR, BORDER_LR, BORDER_LR), padding_mode='symmetric')
 
     BANDS10 = dset_10.shape[1]
     BANDS20 = dset_20.shape[1]
@@ -110,9 +112,10 @@ def get_test_patches60(dset_10, dset_20, dset_60, patchSize=128, border=8, inter
     BORDER_60 = BORDER_10 // 6
 
     # Mirror the data at the borders to have the same dimensions as the input
-    dset_10 = symm_pad(dset_10, (BORDER_10, BORDER_10, BORDER_10, BORDER_10))
-    dset_20 = symm_pad(dset_20, (BORDER_20, BORDER_20, BORDER_20, BORDER_20))
-    dset_60 = symm_pad(dset_60, (BORDER_60, BORDER_60, BORDER_60, BORDER_60))
+    dset_10 = pad(dset_10, (BORDER_10, BORDER_10, BORDER_10, BORDER_10), padding_mode='symmetric')
+    dset_20 = pad(dset_20, (BORDER_20, BORDER_20, BORDER_20, BORDER_20), padding_mode='symmetric')
+    dset_60 = pad(dset_60, (BORDER_60, BORDER_60, BORDER_60, BORDER_60), padding_mode='symmetric')
+
 
     BANDS10 = dset_10.shape[1]
     BANDS20 = dset_20.shape[1]
@@ -161,8 +164,8 @@ def get_test_patches60(dset_10, dset_20, dset_60, patchSize=128, border=8, inter
 
 
 def recompose_images(a, border, size=None):
-    if a.shape[1] == 1:
-        images = a[1]
+    if a.shape[0] == 1:
+        images = a[0]
     else:
         # # This is done because we do not mirror the data at the image border
         # size = [s - border * 2 for s in size]
@@ -178,7 +181,6 @@ def recompose_images(a, border, size=None):
         # print('Image size is: {}'.format(size))
         images = torch.zeros((size[0], a.shape[1], size[2], size[3]), dtype=torch.float32)
 
-        print(images.shape)
         current_patch = 0
         for y in range(int(y_tiles)):
             ypoint = y * patch_size
@@ -195,6 +197,7 @@ def recompose_images(a, border, size=None):
 
     # return images.transpose((1, 2, 0))
     return images
+
 
 
 def symm_pad(im: torch.Tensor, padding: Tuple[int, int, int, int]):

@@ -1,10 +1,11 @@
-experiment_type: ['RR', 'FR']
+experiment_type: ['FR', 'RR']
 
 bands_sr: ['60']
 
 pan_generation: ['synthesize', 'selection']
 
 pansharpening_based_algorithms: ['BDSD', 'GS', 'GSA', 'BT-H', 'PRACS', 'AWLP', 'MTF-GLP', 'MTF-GLP-FS', 'MTF-GLP-HPM', 'MTF-GLP-HPM-H', 'MTF-GLP-HPM-R']
+deep_learning_algorithms: ['DSen2']
 
 tiff_root: '/media/matteo/T7/Dataset_Ugliano/'
 tiff_images: ['New_York']

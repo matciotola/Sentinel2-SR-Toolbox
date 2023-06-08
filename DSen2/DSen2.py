@@ -2,17 +2,17 @@ import os
 from scipy import io
 import torch
 from torch.utils.data import DataLoader
-
+import torchvision.transforms.functional as TF
 from tqdm import tqdm
 
 try:
     from network import DSen2Model
     from image_processing import normalize, denormalize, input_prepro, input_prepro60, get_test_patches, \
-        get_test_patches60, recompose_images
+        get_test_patches60, recompose_images, interp_patches
 except:
     from DSen2.network import DSen2Model
     from DSen2.image_processing import normalize, denormalize, input_prepro, input_prepro60, get_test_patches, \
-        get_test_patches60, recompose_images
+        get_test_patches60, recompose_images, interp_patches
 
 from Utils.dl_tools import open_config, generate_paths, TrainingDataset20m, TrainingDataset60m
 
@@ -31,6 +31,9 @@ def DSen2_20(ordered_dict):
     bands_low_lr = torch.clone(ordered_dict.bands_low_lr)
 
     config_path = 'config.yaml'
+    if not os.path.exists(config_path):
+        config_path = os.path.join('DSen2', 'config.yaml')
+
     config = open_config(config_path)
     ratio = 2
 
@@ -43,7 +46,7 @@ def DSen2_20(ordered_dict):
 
     if not config.train or config.resume:
         if not model_weights_path:
-            model_weights_path = os.path.join('weights', 'DSen2_20m.tar')
+            model_weights_path = os.path.join('DSen2', 'weights', 'DSen2_20m.tar')
         net.load_state_dict(torch.load(model_weights_path))
 
     net = net.to(device)
@@ -72,33 +75,47 @@ def DSen2_20(ordered_dict):
 
 
     bands_high_norm = normalize(bands_high)
+    bands_low = interp_patches(bands_low_lr, bands_high_norm.shape)
+    bands_low_norm = normalize(bands_low)
     bands_low_lr_norm = normalize(bands_low_lr)
+    if config.original_test:
+        patches_10, patches_20 = get_test_patches(bands_high_norm, bands_low_lr_norm, patchSize=config.test_patch_size_20, border=config.border_20)
 
-    patches_10, patches_20 = get_test_patches(bands_high_norm, bands_low_lr_norm, patchSize=128, border=config.border)
+        output = []
 
-    output = []
+        with torch.no_grad():
+            for i in range(len(patches_10)):
+                input_10 = patches_10[i].unsqueeze(0).to(device)
+                input_20 = patches_20[i].unsqueeze(0).to(device)
+                output.append(net(input_10, input_20))
 
-    with torch.no_grad():
-        for i in range(len(patches_10)):
-            input_10 = patches_10[i].unsqueeze(0).to(device)
-            input_20 = patches_20[i].unsqueeze(0).to(device)
-            output.append(net(input_10, input_20))
+        output = torch.cat(output, dim=0)
+        fused = recompose_images(output, config.border_20, bands_high.shape)
+    else:
+        input_10 = TF.pad(bands_high_norm, config.border_20, padding_mode='symmetric').to(device)
+        input_20 = TF.pad(bands_low_norm, config.border_20, padding_mode='symmetric').to(device)
+        net.eval()
+        with torch.no_grad():
+            fused = net(input_10, input_20)
 
-    output = torch.cat(output, dim=0)
+        fused = denormalize(fused)[:, :, config.border_20:-config.border_20, config.border_20:-config.border_20]
 
-    fused = recompose_images(output, config.border, bands_high.shape)
-    fused = denormalize(fused)
-
-    return fused
+    torch.cuda.empty_cache()
+    return fused.cpu().detach()
 
 
 def DSen2_60(ordered_dict):
 
     bands_high = torch.clone(ordered_dict.bands_high)
-    bands_intermediate = torch.clone(ordered_dict.bands_intermediate)
-    bands_low = torch.clone(ordered_dict.bands_low)
+    bands_intermediate_lr = torch.clone(ordered_dict.bands_intermediate)
+    bands_low_lr = torch.clone(ordered_dict.bands_low_lr)
+
+    if bands_low_lr.shape[1] == 3:
+        bands_low_lr = bands_low_lr[:, :-1, :, :]
 
     config_path = 'config.yaml'
+    if not os.path.exists(config_path):
+        config_path = os.path.join('DSen2', 'config.yaml')
     config = open_config(config_path)
     ratio = 2
 
@@ -107,11 +124,11 @@ def DSen2_60(ordered_dict):
 
     model_weights_path = config.model_weights_path
 
-    net = DSen2Model((config.number_bands_10, config.number_bands_20))
+    net = DSen2Model((config.number_bands_10, config.number_bands_20, config.number_bands_60))
 
     if not config.train or config.resume:
         if not model_weights_path:
-            model_weights_path = os.path.join('weights', 'DSen2_20m.tar')
+            model_weights_path = os.path.join('DSen2', 'weights', 'DSen2_60m.tar')
         net.load_state_dict(torch.load(model_weights_path))
 
     net = net.to(device)
@@ -141,26 +158,41 @@ def DSen2_60(ordered_dict):
             io.savemat('./Stats/DSen2/Training_60m.mat', history)
 
     bands_high_norm = normalize(bands_high)
+    bands_low = interp_patches(bands_low_lr, bands_high_norm.shape)
+    bands_intermediate = interp_patches(bands_intermediate_lr, bands_high_norm.shape)
+    bands_intermediate_lr_norm = normalize(bands_intermediate_lr)
     bands_intermediate_norm = normalize(bands_intermediate)
     bands_low_norm = normalize(bands_low)
+    bands_low_lr_norm = normalize(bands_low_lr)
 
-    patches_10, patches_20, patches_60 = get_test_patches60(bands_high_norm, bands_intermediate_norm, bands_low_norm, patchSize=128, border=config.border)
+    if config.original_test:
+        patches_10, patches_20, patches_60 = get_test_patches60(bands_high_norm, bands_intermediate_lr_norm, bands_low_lr_norm, patchSize=config.test_patch_size_60, border=config.border_60)
 
-    output = []
+        output = []
 
-    with torch.no_grad():
-        for i in range(len(patches_10)):
-            input_10 = patches_10[i].unsqueeze(0).to(device)
-            input_20 = patches_20[i].unsqueeze(0).to(device)
-            input_60 = patches_60[i].unsqueeze(0).to(device)
-            output.append(net(input_10, input_20, input_60))
+        with torch.no_grad():
+            for i in range(len(patches_10)):
+                input_10 = patches_10[i].unsqueeze(0).to(device)
+                input_20 = patches_20[i].unsqueeze(0).to(device)
+                input_60 = patches_60[i].unsqueeze(0).to(device)
+                output.append(net(input_10, input_20, input_60))
 
-    output = torch.cat(output, dim=0)
+        output = torch.cat(output, dim=0)
+        fused = recompose_images(output, config.border_60, bands_high.shape)
 
-    fused = recompose_images(output, config.border, bands_high.shape)
-    fused = denormalize(fused)
+    else:
+        input_10 = TF.pad(bands_high_norm, config.border_60, padding_mode='symmetric').to(device)
+        input_20 = TF.pad(bands_intermediate_norm, config.border_60, padding_mode='symmetric').to(device)
+        input_60 = TF.pad(bands_low_norm, config.border_60, padding_mode='symmetric').to(device)
+        net.eval()
+        with torch.no_grad():
+            fused = net(input_10, input_20, input_60)
 
-    return fused
+        fused = denormalize(fused)[:, :, config.border_60:-config.border_60, config.border_60:-config.border_60]
+
+    torch.cuda.empty_cache()
+
+    return fused.cpu().detach()
 
 
 def train(net, train_loader, config, val_loader=None):

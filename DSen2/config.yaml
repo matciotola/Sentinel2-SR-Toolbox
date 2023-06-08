@@ -29,3 +29,11 @@ schedule_decay: 0.004
 number_bands_10: 4
 number_bands_20: 6
 number_bands_60: 2
+
+border_20: 8
+border_60: 12
+
+test_patch_size_20: 128
+test_patch_size_60: 192
+
+original_test: True

@@ -15,7 +15,7 @@ def extract_info(filename):
     return info
 
 
-def save_tiff(img, root, filename, info, ratio=2, type='float32'):
+def save_tiff(img, root, filename, info, ratio=2, type='float32', save_geo_info=True):
 
     if type == 'uint16':
         t = gdal.GDT_UInt16
@@ -49,8 +49,10 @@ def save_tiff(img, root, filename, info, ratio=2, type='float32'):
     proj = info['proj']
     geo2 = [0]*len(geo)
 
-    writer.SetGeoTransform(geo)
-    writer.SetProjection(proj)
+    if save_geo_info:
+        writer.SetGeoTransform(geo)
+        writer.SetProjection(proj)
+
     del driver
     del writer
     return

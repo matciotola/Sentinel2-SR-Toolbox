@@ -24,7 +24,7 @@ pansharpening_algorithm_dict = {'BDSD': BDSD, 'GS': GS, 'GSA': GSA, 'BT-H': BT_H
                                 'MTF-GLP-HPM': MTF_GLP_HPM, 'MTF-GLP-HPM-H': MTF_GLP_HPM_H, # Multi-Resolution analysis
                                 'MTF-GLP-HPM-R': MTF_GLP_HPM_R # Multi-Resolution analysis
                                 }
-ad_hoc_algorithm_dict = {'DSen2': DSen2}
+deep_learning_algorithm_dict = {'DSen2': DSen2}
 
 pan_generation_dict = {'selection': selection, 'synthesize': synthesize}
 
@@ -107,34 +107,44 @@ if __name__ == '__main__':
             exp_info['bands_intermediate'] = bands_intermediate
 
             for generator in config.pan_generation:
+                gen = pan_generation_dict[generator]
+                exp_info['bands_high'], exp_info['bands_selection'] = gen(bands_high, bands_low_lr, exp_info['ratio'])
+                exp_info['ind'] = 0
+                exp_info['pan_generator'] = generator
 
+                if generator == 'selection':
+                    exp_info['mtf_high_name'] = 'S2-10'
+                    gen = 'SEL-'
+                else:
+                    exp_info['mtf_high_name'] = 'S2-10-PAN'
+                    gen = 'SYNTH-'
 
-                    gen = pan_generation_dict[generator]
-                    exp_info['bands_high'], exp_info['bands_selection'] = gen(bands_high, bands_low_lr, exp_info['ratio'])
-                    exp_info['ind'] = 0
-                    exp_info['pan_generator'] = generator
+                exp_input = recordclass('exp_info', exp_info.keys())(*exp_info.values())
 
-                    if generator == 'selection':
-                        exp_info['mtf_high_name'] = 'S2-10'
-                        gen = 'SEL-'
-                    else:
-                        exp_info['mtf_high_name'] = 'S2-10-PAN'
-                        gen = 'SYNTH-'
+                for algorithm in config.pansharpening_based_algorithms:
 
-                    exp_input = recordclass('exp_info', exp_info.keys())(*exp_info.values())
+                    print('Running algorithm: ' + algorithm)
 
-                    for algorithm in config.pansharpening_based_algorithms:
+                    method = pansharpening_algorithm_dict[algorithm]
+                    fused = pansharp_method(method, exp_input)
 
-                        print('Running algorithm: ' + algorithm)
+                    if config.save_results:
+                        save_root = os.path.join(config.save_root, config.tiff_images[0], experiment_type, scale)
+                        ut.save_tiff(np.squeeze(fused.numpy(), axis=0), save_root, gen + algorithm + '.tiff', geo_info)
 
-                        method = pansharpening_algorithm_dict[algorithm]
-                        fused = pansharp_method(method, exp_input)
+                    del fused
+                    gc.collect()
 
-                        if config.save_results:
-                            save_root = os.path.join(config.save_root, config.tiff_images[0], experiment_type, scale)
-                            ut.save_tiff(np.squeeze(fused.numpy(), axis=0), save_root, gen + algorithm + '.tiff', geo_info)
+                exp_input.bands_high = bands_high
+            for dl_algorithm in config.deep_learning_algorithms:
+                print('Running algorithm: ' + dl_algorithm)
+                method = deep_learning_algorithm_dict[dl_algorithm]
+                fused = method(exp_input)
+                if config.save_results:
+                    save_root = os.path.join(config.save_root, config.tiff_images[0], experiment_type, scale)
+                    ut.save_tiff(np.squeeze(fused.numpy(), axis=0), save_root, dl_algorithm + '.tiff', geo_info)
 
-                        del fused
-                        gc.collect()
-
+                del fused
+                torch.cuda.empty_cache()
+                gc.collect()
 
