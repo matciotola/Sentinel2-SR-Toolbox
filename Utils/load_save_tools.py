@@ -19,8 +19,10 @@ def save_tiff(img, root, filename, info, ratio=2, type='float32', save_geo_info=
 
     if type == 'uint16':
         t = gdal.GDT_UInt16
+        img.astype('uint16')
     elif type == 'float32':
         t = gdal.GDT_Float32
+        img.astype('float32')
 
     if not os.path.exists(root):
         os.makedirs(root)
