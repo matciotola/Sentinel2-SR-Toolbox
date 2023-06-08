@@ -179,6 +179,7 @@ def DSen2_60(ordered_dict):
 
         output = torch.cat(output, dim=0)
         fused = recompose_images(output, config.border_60, bands_high.shape)
+        fused = denormalize(fused)
 
     else:
         input_10 = TF.pad(bands_high_norm, config.border_60, padding_mode='symmetric').to(device)

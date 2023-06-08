@@ -15,14 +15,13 @@ def extract_info(filename):
     return info
 
 
-def save_tiff(img, root, filename, info, ratio=2, type='float32', save_geo_info=True):
+def save_tiff(img, root, filename, info, ratio=2, type='uint16', save_geo_info=True):
 
     if type == 'uint16':
         t = gdal.GDT_UInt16
-        np.round(img).astype('uint16')
+        np.round(np.clip(img, 0, 65535, out=img)).astype(np.uint16)
     elif type == 'float32':
         t = gdal.GDT_Float32
-        img.astype('float32')
 
     if not os.path.exists(root):
         os.makedirs(root)
