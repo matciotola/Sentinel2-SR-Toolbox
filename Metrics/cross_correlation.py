@@ -1,9 +1,7 @@
 from math import ceil
-
-import numpy as np
 import torch
 import torch.nn.functional as F
-from skimage.transform.integral import integral_image as integral
+
 
 def xcorr_torch(img_1, img_2, half_width, device):
     """
