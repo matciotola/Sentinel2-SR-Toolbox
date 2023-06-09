@@ -254,10 +254,19 @@ def train(device, net, train_loader, config, val_loader=None):
             net.eval()
             with torch.no_grad():
                 for i, data in enumerate(val_loader):
-                    inputs, labels = data
-                    inputs = inputs.to(device)
+                    if len(data) == 3:
+                        inputs_10, inputs_20, labels = data
+                        inputs_60 = None
+                    else:
+                        inputs_10, inputs_20, inputs_60, labels = data
+                        inputs_60 = inputs_60.to(device)
+                    inputs_10 = inputs_10.to(device)
+                    inputs_20 = inputs_20.to(device)
                     labels = labels.to(device)
-                    outputs = net(inputs)
+                    if inputs_60 == None:
+                        outputs = net(inputs_10, inputs_20)
+                    else:
+                        outputs = net(inputs_10, inputs_20, inputs_60)
                     val_loss = criterion(outputs, labels)
                     val_mse = metric(outputs, labels)
                     running_val_loss += val_loss.item()
