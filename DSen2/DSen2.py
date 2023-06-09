@@ -201,7 +201,7 @@ def train(device, net, train_loader, config, val_loader=None):
 
     criterion = torch.nn.L1Loss(reduction='mean').to(device)
     metric = torch.nn.MSELoss(reduction='mean').to(device)
-    optim = torch.optim.NAdam(net.parameters(), lr=config.lr, betas=(config.beta1, config.beta2), eps=config.epislon, weight_decay=config.weight_decay)
+    optim = torch.optim.NAdam(net.parameters(), lr=config.learning_rate, betas=(config.beta1, config.beta2), eps=config.epislon, weight_decay=config.weight_decay)
 
     history_loss = []
     history_metric = []
