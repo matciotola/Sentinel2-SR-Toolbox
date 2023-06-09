@@ -8,11 +8,11 @@ from tqdm import tqdm
 try:
     from network import DSen2Model
     from input_preprocessing import normalize, denormalize, input_prepro_20, input_prepro_60, get_test_patches_20, \
-        get_test_patches_60, recompose_images, interp_patches
+        get_test_patches_60, recompose_images, upsample_protocol
 except:
     from DSen2.network import DSen2Model
     from DSen2.input_preprocessing import normalize, denormalize, input_prepro_20, input_prepro_60, get_test_patches_20, \
-        get_test_patches_60, recompose_images, interp_patches
+        get_test_patches_60, recompose_images, upsample_protocol
 
 from Utils.dl_tools import open_config, generate_paths, TrainingDataset20m, TrainingDataset60m
 
@@ -75,7 +75,7 @@ def DSen2_20(ordered_dict):
 
 
     bands_high_norm = normalize(bands_high)
-    bands_low = interp_patches(bands_low_lr, bands_high_norm.shape)
+    bands_low = upsample_protocol(bands_low_lr, bands_high_norm.shape)
     bands_low_norm = normalize(bands_low)
     bands_low_lr_norm = normalize(bands_low_lr)
     if config.original_test:
@@ -148,7 +148,7 @@ def DSen2_60(ordered_dict):
         else:
             val_loader = None
 
-        net, history = train(device, net, train_loader, val_loader)
+        net, history = train(device, net, train_loader, config, val_loader)
 
         if config.save_weights:
             torch.save(net.state_dict(), config.save_weights_path)
@@ -159,8 +159,8 @@ def DSen2_60(ordered_dict):
             io.savemat('./Stats/DSen2/Training_60m.mat', history)
 
     bands_high_norm = normalize(bands_high)
-    bands_low = interp_patches(bands_low_lr, bands_high_norm.shape)
-    bands_intermediate = interp_patches(bands_intermediate_lr, bands_high_norm.shape)
+    bands_low = upsample_protocol(bands_low_lr, bands_high_norm.shape)
+    bands_intermediate = upsample_protocol(bands_intermediate_lr, bands_high_norm.shape)
     bands_intermediate_lr_norm = normalize(bands_intermediate_lr)
     bands_intermediate_norm = normalize(bands_intermediate)
     bands_low_norm = normalize(bands_low)
