@@ -148,7 +148,7 @@ def DSen2_60(ordered_dict):
         else:
             val_loader = None
 
-        net, history = train(net, train_loader, val_loader)
+        net, history = train(device, net, train_loader, val_loader)
 
         if config.save_weights:
             torch.save(net.state_dict(), config.save_weights_path)
@@ -197,10 +197,10 @@ def DSen2_60(ordered_dict):
     return fused.cpu().detach()
 
 
-def train(net, train_loader, config, val_loader=None):
+def train(device, net, train_loader, config, val_loader=None):
 
-    criterion = torch.nn.L1Loss(reduction='mean').to(net.device)
-    metric = torch.nn.MSELoss(reduction='mean').to(net.device)
+    criterion = torch.nn.L1Loss(reduction='mean').to(device)
+    metric = torch.nn.MSELoss(reduction='mean').to(device)
     optim = torch.optim.NAdam(net.parameters(), lr=config.lr, betas=(config.beta1, config.beta2), eps=config.epislon, weight_decay=config.weight_decay)
 
     history_loss = []
@@ -228,11 +228,11 @@ def train(net, train_loader, config, val_loader=None):
                 inputs_10, inputs_20, labels = data
             else:
                 inputs_10, inputs_20, inputs_60, labels = data
-                inputs_60 = inputs_60.to(net.device)
+                inputs_60 = inputs_60.to(device)
 
-            inputs_10 = inputs_10.to(net.device)
-            inputs_20 = inputs_20.to(net.device)
-            labels = labels.to(net.device)
+            inputs_10 = inputs_10.to(device)
+            inputs_20 = inputs_20.to(device)
+            labels = labels.to(device)
 
             if len(data) == 3:
                 outputs = net(inputs_10, inputs_20)
@@ -255,8 +255,8 @@ def train(net, train_loader, config, val_loader=None):
             with torch.no_grad():
                 for i, data in enumerate(val_loader):
                     inputs, labels = data
-                    inputs = inputs.to(net.device)
-                    labels = labels.to(net.device)
+                    inputs = inputs.to(device)
+                    labels = labels.to(device)
                     outputs = net(inputs)
                     val_loss = criterion(outputs, labels)
                     val_mse = metric(outputs, labels)
