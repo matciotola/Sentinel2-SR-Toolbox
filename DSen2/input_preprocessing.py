@@ -19,7 +19,7 @@ def denormalize(img, scale=2000):
 def input_prepro_20(bands_high, bands_low, ratio):
     bands_high_lr = downsample_protocol(bands_high, ratio)
     bands_low_lr_lr = downsample_protocol(bands_low, ratio)
-    bands_low_lr = interp_patches(bands_low_lr_lr, bands_high_lr.shape)
+    bands_low_lr = upsample_protocol(bands_low_lr_lr, bands_high_lr.shape)
 
     return bands_high_lr, bands_low_lr, bands_low
 
@@ -28,7 +28,7 @@ def input_prepro_60(bands_high, bands_intermediate, bands_low, ratio):
     bands_high_lr = downsample_protocol(bands_high, ratio)
     bands_intermediate_lr = downsample_protocol(bands_intermediate, ratio)
     bands_low_lr_lr = downsample_protocol(bands_low, ratio)
-    bands_low_lr = interp_patches(bands_low_lr_lr, bands_high_lr.shape)
+    bands_low_lr = upsample_protocol(bands_low_lr_lr, bands_high_lr.shape)
 
     return bands_high_lr, bands_intermediate_lr, bands_low_lr, bands_low
 
@@ -46,10 +46,10 @@ def downsample_protocol(img, ratio):
     return img_lr
 
 
-def interp_patches(bands_low, bands_high_shape):
-    data20_interp = resize(bands_low / 30000, (bands_high_shape[2:4]),
-                           interpolation=InterpolationMode.BILINEAR, antialias=True) * 30000  # bilinear
-    return data20_interp
+def upsample_protocol(img, shape):
+    img_hr = resize(img / 30000, (shape[2:4]),
+                    interpolation=InterpolationMode.BILINEAR, antialias=True) * 30000  # bilinear
+    return img_hr
 
 
 def get_test_patches_20(dset_10, dset_20, patchSize=128, border=4, interp=True):
@@ -73,9 +73,9 @@ def get_test_patches_20(dset_10, dset_20, patchSize=128, border=4, interp=True):
     image_10 = torch.zeros(((nr_patches, BANDS10) + PATCH_SIZE_HR), dtype=torch.float32)
 
     range_i = np.arange(0, (dset_20.shape[2] - 2 * BORDER_LR) // (PATCH_SIZE_LR[0] - 2 * BORDER_LR)) * (
-                PATCH_SIZE_LR[0] - 2 * BORDER_LR)
+            PATCH_SIZE_LR[0] - 2 * BORDER_LR)
     range_j = np.arange(0, (dset_20.shape[3] - 2 * BORDER_LR) // (PATCH_SIZE_LR[1] - 2 * BORDER_LR)) * (
-                PATCH_SIZE_LR[1] - 2 * BORDER_LR)
+            PATCH_SIZE_LR[1] - 2 * BORDER_LR)
 
     if not ((dset_20.shape[0] - 2 * BORDER_LR) % (PATCH_SIZE_LR[0] - 2 * BORDER_LR)) == 0:
         range_i = np.append(range_i, (dset_20.shape[2] - PATCH_SIZE_LR[0]))
@@ -94,7 +94,7 @@ def get_test_patches_20(dset_10, dset_20, patchSize=128, border=4, interp=True):
     image_10_shape = image_10.shape
 
     if interp:
-        data20_interp = interp_patches(image_20, image_10_shape)
+        data20_interp = upsample_protocol(image_20, image_10_shape)
     else:
         data20_interp = image_20
     return image_10, data20_interp
@@ -113,7 +113,6 @@ def get_test_patches_60(dset_10, dset_20, dset_60, patchSize=128, border=8, inte
     dset_20 = pad(dset_20, [BORDER_20, BORDER_20, BORDER_20, BORDER_20], padding_mode='symmetric')
     dset_60 = pad(dset_60, [BORDER_60, BORDER_60, BORDER_60, BORDER_60], padding_mode='symmetric')
 
-
     BANDS10 = dset_10.shape[1]
     BANDS20 = dset_20.shape[1]
     BANDS60 = dset_60.shape[1]
@@ -127,9 +126,9 @@ def get_test_patches_60(dset_10, dset_20, dset_60, patchSize=128, border=8, inte
     image_60 = torch.zeros((nr_patches, BANDS60) + tuple(PATCH_SIZE_60), dtype=torch.float32)
 
     range_i = np.arange(0, (dset_60.shape[2] - 2 * BORDER_60) // (PATCH_SIZE_60[0] - 2 * BORDER_60)) * (
-                PATCH_SIZE_60[0] - 2 * BORDER_60)
+            PATCH_SIZE_60[0] - 2 * BORDER_60)
     range_j = np.arange(0, (dset_60.shape[3] - 2 * BORDER_60) // (PATCH_SIZE_60[1] - 2 * BORDER_60)) * (
-                PATCH_SIZE_60[1] - 2 * BORDER_60)
+            PATCH_SIZE_60[1] - 2 * BORDER_60)
 
     if not ((dset_60.shape[0] - 2 * BORDER_60 % PATCH_SIZE_60[0] - 2 * BORDER_60) == 0):
         range_i = np.append(range_i, (dset_60.shape[2] - PATCH_SIZE_60[0]))
@@ -150,8 +149,8 @@ def get_test_patches_60(dset_10, dset_20, dset_60, patchSize=128, border=8, inte
     image_10_shape = image_10.shape
 
     if interp:
-        data20_interp = interp_patches(image_20, image_10_shape)
-        data60_interp = interp_patches(image_60, image_10_shape)
+        data20_interp = upsample_protocol(image_20, image_10_shape)
+        data60_interp = upsample_protocol(image_60, image_10_shape)
 
     else:
         data20_interp = image_20
