@@ -6,8 +6,6 @@ from torchvision.transforms import InterpolationMode
 from torchvision.transforms.functional import resize, gaussian_blur, pad
 from torch.nn.functional import avg_pool2d
 
-from math import ceil
-
 
 def normalize(img, scale=2000):
     normalized = img / scale

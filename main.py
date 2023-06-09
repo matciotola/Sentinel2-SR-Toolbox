@@ -17,7 +17,7 @@ from DSen2.DSen2 import DSen2
 from Utils.dl_tools import generate_paths, open_tiff
 from recordclass import recordclass
 from Utils import load_save_tools as ut
-from Utils.input_preprocessing import downsample_protocol
+from Utils.image_preprocessing import downsample_protocol
 
 pansharpening_algorithm_dict = {'BDSD': BDSD, 'GS': GS, 'GSA': GSA, 'BT-H': BT_H, 'PRACS': PRACS, # Component substitution
                                 'AWLP': AWLP, 'MTF-GLP': MTF_GLP, 'MTF-GLP-FS': MTF_GLP_FS, # Multi-Resolution analysis

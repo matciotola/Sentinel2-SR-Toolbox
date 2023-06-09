@@ -7,16 +7,16 @@ from tqdm import tqdm
 
 try:
     from network import DSen2Model
-    from image_processing import normalize, denormalize, input_prepro, input_prepro60, get_test_patches, \
+    from input_preprocessing import normalize, denormalize, input_prepro, input_prepro60, get_test_patches, \
         get_test_patches60, recompose_images, interp_patches
 except:
     from DSen2.network import DSen2Model
-    from DSen2.image_processing import normalize, denormalize, input_prepro, input_prepro60, get_test_patches, \
+    from DSen2.input_preprocessing import normalize, denormalize, input_prepro, input_prepro60, get_test_patches, \
         get_test_patches60, recompose_images, interp_patches
 
 from Utils.dl_tools import open_config, generate_paths, TrainingDataset20m, TrainingDataset60m
 
-from FUSE.aux_net_fuse import get_patches # TO DO LANARAS?
+from FUSE.input_preprocessing import get_patches # TO DO LANARAS?
 
 
 def DSen2(ordered_dict):
