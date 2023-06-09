@@ -1,7 +1,6 @@
 import numpy as np
 from skimage.transform import resize
 import torch
-from typing import Tuple
 from torchvision.transforms import InterpolationMode
 from torchvision.transforms.functional import resize, gaussian_blur, pad
 from torch.nn.functional import avg_pool2d
@@ -17,7 +16,7 @@ def denormalize(img, scale=2000):
     return denormalized
 
 
-def input_prepro(bands_high, bands_low, ratio):
+def input_prepro_20(bands_high, bands_low, ratio):
     bands_high_lr = downsample_protocol(bands_high, ratio)
     bands_low_lr_lr = downsample_protocol(bands_low, ratio)
     bands_low_lr = interp_patches(bands_low_lr_lr, bands_high_lr.shape)
@@ -25,7 +24,7 @@ def input_prepro(bands_high, bands_low, ratio):
     return bands_high_lr, bands_low_lr, bands_low
 
 
-def input_prepro60(bands_high, bands_intermediate, bands_low, ratio):
+def input_prepro_60(bands_high, bands_intermediate, bands_low, ratio):
     bands_high_lr = downsample_protocol(bands_high, ratio)
     bands_intermediate_lr = downsample_protocol(bands_intermediate, ratio)
     bands_low_lr_lr = downsample_protocol(bands_low, ratio)
@@ -53,15 +52,15 @@ def interp_patches(bands_low, bands_high_shape):
     return data20_interp
 
 
-def get_test_patches(dset_10, dset_20, patchSize=128, border=4, interp=True):
+def get_test_patches_20(dset_10, dset_20, patchSize=128, border=4, interp=True):
     PATCH_SIZE_HR = (patchSize, patchSize)
     PATCH_SIZE_LR = [p // 2 for p in PATCH_SIZE_HR]
     BORDER_HR = border
     BORDER_LR = BORDER_HR // 2
 
     # Mirror the data at the borders to have the same dimensions as the input
-    dset_10 = pad(dset_10, (BORDER_HR, BORDER_HR, BORDER_HR, BORDER_HR), padding_mode='symmetric')
-    dset_20 = pad(dset_20, (BORDER_LR, BORDER_LR, BORDER_LR, BORDER_LR), padding_mode='symmetric')
+    dset_10 = pad(dset_10, [BORDER_HR, BORDER_HR, BORDER_HR, BORDER_HR], padding_mode='symmetric')
+    dset_20 = pad(dset_20, [BORDER_LR, BORDER_LR, BORDER_LR, BORDER_LR], padding_mode='symmetric')
 
     BANDS10 = dset_10.shape[1]
     BANDS20 = dset_20.shape[1]
@@ -101,7 +100,7 @@ def get_test_patches(dset_10, dset_20, patchSize=128, border=4, interp=True):
     return image_10, data20_interp
 
 
-def get_test_patches60(dset_10, dset_20, dset_60, patchSize=128, border=8, interp=True):
+def get_test_patches_60(dset_10, dset_20, dset_60, patchSize=128, border=8, interp=True):
     PATCH_SIZE_10 = (patchSize, patchSize)
     PATCH_SIZE_20 = [p // 2 for p in PATCH_SIZE_10]
     PATCH_SIZE_60 = [p // 6 for p in PATCH_SIZE_10]
@@ -110,9 +109,9 @@ def get_test_patches60(dset_10, dset_20, dset_60, patchSize=128, border=8, inter
     BORDER_60 = BORDER_10 // 6
 
     # Mirror the data at the borders to have the same dimensions as the input
-    dset_10 = pad(dset_10, (BORDER_10, BORDER_10, BORDER_10, BORDER_10), padding_mode='symmetric')
-    dset_20 = pad(dset_20, (BORDER_20, BORDER_20, BORDER_20, BORDER_20), padding_mode='symmetric')
-    dset_60 = pad(dset_60, (BORDER_60, BORDER_60, BORDER_60, BORDER_60), padding_mode='symmetric')
+    dset_10 = pad(dset_10, [BORDER_10, BORDER_10, BORDER_10, BORDER_10], padding_mode='symmetric')
+    dset_20 = pad(dset_20, [BORDER_20, BORDER_20, BORDER_20, BORDER_20], padding_mode='symmetric')
+    dset_60 = pad(dset_60, [BORDER_60, BORDER_60, BORDER_60, BORDER_60], padding_mode='symmetric')
 
 
     BANDS10 = dset_10.shape[1]
@@ -195,27 +194,3 @@ def recompose_images(a, border, size=None):
 
     # return images.transpose((1, 2, 0))
     return images
-
-
-
-def symm_pad(im: torch.Tensor, padding: Tuple[int, int, int, int]):
-    h, w = im.shape[-2:]
-    left, right, top, bottom = padding
-
-    x_idx = np.arange(-left, w + right)
-    y_idx = np.arange(-top, h + bottom)
-
-    def reflect(x, minx, maxx):
-        """ Reflects an array around two points making a triangular waveform that ramps up
-        and down,  allowing for pad lengths greater than the input length """
-        rng = maxx - minx
-        double_rng = 2 * rng
-        mod = np.fmod(x - minx, double_rng)
-        normed_mod = np.where(mod < 0, mod + double_rng, mod)
-        out = np.where(normed_mod >= rng, double_rng - normed_mod, normed_mod) + minx
-        return np.array(out, dtype=x.dtype)
-
-    x_pad = reflect(x_idx, -0.5, w - 0.5)
-    y_pad = reflect(y_idx, -0.5, h - 0.5)
-    xx, yy = np.meshgrid(x_pad, y_pad)
-    return im[..., yy, xx]
