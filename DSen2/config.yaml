@@ -24,7 +24,7 @@ training_patch_size_60: 96
 
 beta_1: 0.9
 beta_2: 0.999
-epsilon: 1e-8
+epsilon: 0.00000001
 schedule_decay: 0.004
 
 
