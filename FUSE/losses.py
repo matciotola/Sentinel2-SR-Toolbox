@@ -96,7 +96,6 @@ class RegLoss(nn.Module):
         self.l1_regularization.requires_grad_ = False
 
     def forward(self, outputs):
-        ## Pad added to have same output
         L = self.l1_regularization(outputs)
         L = torch.abs(L)
         L = torch.mean(L)

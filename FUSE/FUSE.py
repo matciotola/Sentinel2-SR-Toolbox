@@ -66,7 +66,7 @@ def FUSE(ordered_dict):
             io.savemat('./Stats/DSen2/Training_20m.mat', history)
 
     bands_high_norm = normalize(bands_high)
-    bands_low = upsample_protocol(bands_low_lr, bands_high_norm.shape)
+    bands_low = upsample_protocol(bands_low_lr, ratio)
     bands_low_norm = normalize(bands_low)
 
     input_10 = bands_high_norm.to(device)
