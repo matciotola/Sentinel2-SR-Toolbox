@@ -77,31 +77,22 @@ def DSen2_20(ordered_dict):
 
 
     bands_high_norm = normalize(bands_high)
-    bands_low = upsample_protocol(bands_low_lr, bands_high_norm.shape)
-    bands_low_norm = normalize(bands_low)
     bands_low_lr_norm = normalize(bands_low_lr)
-    if config.original_test:
-        patches_10, patches_20 = get_test_patches_20(bands_high_norm, bands_low_lr_norm, patchSize=config.test_patch_size_20, border=config.border_20)
 
-        output = []
+    patches_10, patches_20 = get_test_patches_20(bands_high_norm, bands_low_lr_norm, patchSize=config.test_patch_size_20, border=config.border_20)
 
-        with torch.no_grad():
-            for i in range(len(patches_10)):
-                input_10 = patches_10[i].unsqueeze(0).to(device)
-                input_20 = patches_20[i].unsqueeze(0).to(device)
-                output.append(net(input_10, input_20))
+    output = []
 
-        output = torch.cat(output, dim=0)
-        fused = recompose_images(output, config.border_20, bands_high.shape)
-        fused = denormalize(fused)
-    else:
-        input_10 = TF.pad(bands_high_norm, config.border_20, padding_mode='symmetric').to(device)
-        input_20 = TF.pad(bands_low_norm, config.border_20, padding_mode='symmetric').to(device)
-        net.eval()
-        with torch.no_grad():
-            fused = net(input_10, input_20)
+    with torch.no_grad():
+        for i in range(len(patches_10)):
+            input_10 = patches_10[i].unsqueeze(0).to(device)
+            input_20 = patches_20[i].unsqueeze(0).to(device)
+            output.append(net(input_10, input_20))
 
-        fused = denormalize(fused)[:, :, config.border_20:-config.border_20, config.border_20:-config.border_20]
+    output = torch.cat(output, dim=0)
+    fused = recompose_images(output, config.border_20, bands_high.shape)
+    fused = denormalize(fused)
+
 
     torch.cuda.empty_cache()
     return fused.cpu().detach()
@@ -163,38 +154,23 @@ def DSen2_60(ordered_dict):
             io.savemat('./Stats/DSen2/Training_60m.mat', history)
 
     bands_high_norm = normalize(bands_high)
-    bands_low = upsample_protocol(bands_low_lr, bands_high_norm.shape)
-    bands_intermediate = upsample_protocol(bands_intermediate_lr, bands_high_norm.shape)
     bands_intermediate_lr_norm = normalize(bands_intermediate_lr)
-    bands_intermediate_norm = normalize(bands_intermediate)
-    bands_low_norm = normalize(bands_low)
     bands_low_lr_norm = normalize(bands_low_lr)
 
-    if config.original_test:
-        patches_10, patches_20, patches_60 = get_test_patches_60(bands_high_norm, bands_intermediate_lr_norm, bands_low_lr_norm, patchSize=config.test_patch_size_60, border=config.border_60)
+    patches_10, patches_20, patches_60 = get_test_patches_60(bands_high_norm, bands_intermediate_lr_norm, bands_low_lr_norm, patchSize=config.test_patch_size_60, border=config.border_60)
 
-        output = []
+    output = []
 
-        with torch.no_grad():
-            for i in range(len(patches_10)):
-                input_10 = patches_10[i].unsqueeze(0).to(device)
-                input_20 = patches_20[i].unsqueeze(0).to(device)
-                input_60 = patches_60[i].unsqueeze(0).to(device)
-                output.append(net(input_10, input_20, input_60))
+    with torch.no_grad():
+        for i in range(len(patches_10)):
+            input_10 = patches_10[i].unsqueeze(0).to(device)
+            input_20 = patches_20[i].unsqueeze(0).to(device)
+            input_60 = patches_60[i].unsqueeze(0).to(device)
+            output.append(net(input_10, input_20, input_60))
 
-        output = torch.cat(output, dim=0)
-        fused = recompose_images(output, config.border_60, bands_high.shape)
-        fused = denormalize(fused)
-
-    else:
-        input_10 = TF.pad(bands_high_norm, config.border_60, padding_mode='symmetric').to(device)
-        input_20 = TF.pad(bands_intermediate_norm, config.border_60, padding_mode='symmetric').to(device)
-        input_60 = TF.pad(bands_low_norm, config.border_60, padding_mode='symmetric').to(device)
-        net.eval()
-        with torch.no_grad():
-            fused = net(input_10, input_20, input_60)
-
-        fused = denormalize(fused)[:, :, config.border_60:-config.border_60, config.border_60:-config.border_60]
+    output = torch.cat(output, dim=0)
+    fused = recompose_images(output, config.border_60, bands_high.shape)
+    fused = denormalize(fused)
 
     torch.cuda.empty_cache()
 

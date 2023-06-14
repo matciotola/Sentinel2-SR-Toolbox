@@ -1,5 +1,4 @@
 import numpy as np
-from skimage.transform import resize
 import torch
 from torchvision.transforms import InterpolationMode
 from torchvision.transforms.functional import resize, gaussian_blur, pad
@@ -8,11 +7,13 @@ from torch.nn.functional import avg_pool2d
 
 def normalize(img, scale=2000):
     normalized = img / scale
+
     return normalized
 
 
 def denormalize(img, scale=2000):
     denormalized = img * scale
+
     return denormalized
 
 
@@ -36,11 +37,8 @@ def input_prepro_60(bands_high, bands_intermediate, bands_low, ratio):
 def downsample_protocol(img, ratio):
     sigma = 1 / ratio
     radius = round(4.0 * sigma)
-
     kernel_size = 2 * radius + 1
-
     img_lp = gaussian_blur(img, [kernel_size, kernel_size], sigma)
-
     img_lr = avg_pool2d(img_lp, [ratio, ratio])
 
     return img_lr
@@ -97,6 +95,7 @@ def get_test_patches_20(dset_10, dset_20, patchSize=128, border=4, interp=True):
         data20_interp = upsample_protocol(image_20, image_10_shape)
     else:
         data20_interp = image_20
+
     return image_10, data20_interp
 
 
@@ -191,5 +190,4 @@ def recompose_images(a, border, size=None):
                                                                                        border:a.shape[3] - border]
                 current_patch += 1
 
-    # return images.transpose((1, 2, 0))
     return images

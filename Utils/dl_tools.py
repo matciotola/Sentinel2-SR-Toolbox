@@ -10,9 +10,11 @@ def read_yaml(file_path):
     with open(file_path, "r") as f:
         return yaml.safe_load(f)
 
+
 def open_config(file_path):
     yaml_file = read_yaml(file_path)
     return recordclass('config', yaml_file.keys())(*yaml_file.values())
+
 
 def open_tiff(path):
     bands = gdal.Open(path)
@@ -20,7 +22,8 @@ def open_tiff(path):
     bands = torch.Tensor(bands)[None, :, :, :]
     return bands
 
-def generate_paths (root, names):
+
+def generate_paths(root, names):
     paths_10 = []
     paths_20 = []
     paths_60 = []
@@ -31,6 +34,7 @@ def generate_paths (root, names):
         paths_60.append(os.path.join(root, '60', name + '.tif'))
 
     return paths_10, paths_20, paths_60
+
 
 class TrainingDataset20m(Dataset):
     def __init__(self, bands_high_paths, bands_low_lr_paths, norm, input_prepro, get_patches, ratio=2, patches_size=33):
@@ -64,7 +68,8 @@ class TrainingDataset20m(Dataset):
 
 
 class TrainingDataset60m(Dataset):
-    def __init__(self, bands_high_paths, bands_intermediate_lr_paths, bands_low_lr_paths, norm, input_prepro, get_patches, ratio=2, patches_size=33):
+    def __init__(self, bands_high_paths, bands_intermediate_lr_paths, bands_low_lr_paths, norm, input_prepro,
+                 get_patches, ratio=2, patches_size=33):
         super(TrainingDataset60m, self).__init__()
 
         bands_low_lr = []
@@ -80,7 +85,8 @@ class TrainingDataset60m(Dataset):
         bands_intermediate_lr = torch.cat(bands_intermediate_lr, 0)
         bands_low_lr = torch.cat(bands_low_lr, 0)
 
-        bands_high_downsampled, bands_intermediate_downsampled, bands_low_downsampled, bands_low_lr = input_prepro(bands_high, bands_intermediate_lr, bands_low_lr, ratio)
+        bands_high_downsampled, bands_intermediate_downsampled, bands_low_downsampled, bands_low_lr = input_prepro(
+            bands_high, bands_intermediate_lr, bands_low_lr, ratio)
 
         bands_high_downsampled = norm(bands_high_downsampled)
         bands_intermediate_downsampled = norm(bands_intermediate_downsampled)
@@ -96,4 +102,5 @@ class TrainingDataset60m(Dataset):
         return self.patches_high_lr.shape[0]
 
     def __getitem__(self, index):
-        return self.patches_high_lr[index], self.patches_intermediate_lr, self.patches_low_lr[index], self.patches_low[index]
+        return self.patches_high_lr[index], self.patches_intermediate_lr, self.patches_low_lr[index], self.patches_low[
+            index]

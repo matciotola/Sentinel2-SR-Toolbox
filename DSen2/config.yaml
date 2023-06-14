@@ -38,5 +38,3 @@ border_60: 12
 
 test_patch_size_20: 128
 test_patch_size_60: 192
-
-original_test: True
