@@ -2,7 +2,6 @@ import os
 from scipy import io
 import torch
 from torch.utils.data import DataLoader
-import torchvision.transforms.functional as TF
 from tqdm import tqdm
 
 try:
