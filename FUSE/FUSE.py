@@ -56,7 +56,7 @@ def FUSE(ordered_dict):
         else:
             val_loader = None
 
-        net, history = train(net, train_loader, val_loader)
+        net, history = train(device, net, train_loader, config, val_loader)
 
         if config.save_weights:
             torch.save(net.state_dict(), config.save_weights_path)
