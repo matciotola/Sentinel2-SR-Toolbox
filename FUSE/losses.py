@@ -2,6 +2,21 @@ import torch
 from torch import nn as nn
 
 
+class SpectralLoss(nn.Module):
+    def __init__(self, ):
+        # Class initialization
+        super(SpectralLoss, self).__init__()
+
+        # Conversion of filters in Tensor
+        self.loss = nn.L1Loss(reduction='mean')
+
+    def forward(self, outputs, labels):
+        ## Pad added to have same output
+        L = self.loss(outputs, labels)
+        L = torch.mean(L)
+
+        return L
+
 class StructLoss(nn.Module):
     def __init__(self, nbands=6):
         # Class initialization
@@ -64,21 +79,6 @@ class StructLoss(nn.Module):
         return L
 
 
-class SpectralLoss(nn.Module):
-    def __init__(self, ):
-        # Class initialization
-        super(SpectralLoss, self).__init__()
-
-        # Conversion of filters in Tensor
-        self.loss = nn.L1Loss(reduction='mean')
-
-    def forward(self, outputs, labels):
-        ## Pad added to have same output
-        L = self.loss(outputs, labels)
-        L = torch.mean(L)
-
-        return L
-
 
 class RegLoss(nn.Module):
     def __init__(self, nbands=6):
@@ -86,25 +86,18 @@ class RegLoss(nn.Module):
         super(RegLoss, self).__init__()
 
 
-        Gy = ((torch.Tensor([[0, 1, 0], [0, 0, 0], [0, -1, 0]]))[None, None, :, :]).repeat([nbands, 1, 1, 1])
-        Gx = ((torch.Tensor([[0, 0, 0], [1, 0, -1], [0, 0, 0]]))[None, None, :, :]).repeat([nbands, 1, 1, 1])
-        self.gradients_y = nn.Conv2d(in_channels=nbands,
-                                     padding='same', kernel_size=3,
-                                     out_channels=nbands, bias=False, groups=nbands)
-        self.gradients_x = nn.Conv2d(in_channels=nbands,
-                                     padding='same', kernel_size=3,
-                                     out_channels=nbands, bias=False, groups=nbands)
-
-        self.gradients_y.weight.data = Gy
-        self.gradients_x.weight.data = Gx
-
-        self.gradients_y.requires_grad_ = False
-        self.gradients_x.requires_grad_ = False
+        self.l1_regularization = nn.Conv2d(in_channels=nbands,
+                                           padding='same', kernel_size=2,
+                                           out_channels=2, bias=False)
+        W = torch.Tensor([[[0, 1, 0], [0, 0, 0], [0, -1, 0]], [[0, 0, 0], [1, 0, -1], [0, 0, 0]]])
+        W = torch.unsqueeze(W, dim=1)
+        W = W.repeat([1, nbands, 1, 1])
+        self.l1_regularization.weight.data = W
+        self.l1_regularization.requires_grad_ = False
 
     def forward(self, outputs):
         ## Pad added to have same output
-        Lx = torch.abs(self.gradients_x(outputs))
-        Ly = torch.abs(self.gradients_y(outputs))
-        L = torch.mean((Lx + Ly) / 2)
+        L = self.l1_regularization(outputs)
+        L = torch.abs(L)
+        L = torch.mean(L)
         return L
-
