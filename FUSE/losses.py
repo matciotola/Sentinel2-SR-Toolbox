@@ -9,7 +9,7 @@ class StructLoss(nn.Module):
 
         self.eps = 1e-16
 
-        self.gradients_y = nn.Conv2d(in_channels=self.nbands,
+        self.gradients_y = nn.Conv2d(in_channels=nbands,
                                      padding='same', kernel_size=3,
                                      out_channels=nbands, bias=False, groups=nbands)
         self.gradients_x = nn.Conv2d(in_channels=nbands,
@@ -81,17 +81,14 @@ class SpectralLoss(nn.Module):
 
 
 class RegLoss(nn.Module):
-    def __init__(self, nbands=1):
+    def __init__(self, nbands=6):
         # Class initialization
         super(RegLoss, self).__init__()
 
 
-        self.l1_regularization_x = nn.Conv2d(in_channels=nbands,
-                                           padding='same', kernel_size=3,
-                                           out_channels=2, bias=False)
         Gy = ((torch.Tensor([[0, 1, 0], [0, 0, 0], [0, -1, 0]]))[None, None, :, :]).repeat([nbands, 1, 1, 1])
         Gx = ((torch.Tensor([[0, 0, 0], [1, 0, -1], [0, 0, 0]]))[None, None, :, :]).repeat([nbands, 1, 1, 1])
-        self.gradients_y = nn.Conv2d(in_channels=self.nbands,
+        self.gradients_y = nn.Conv2d(in_channels=nbands,
                                      padding='same', kernel_size=3,
                                      out_channels=nbands, bias=False, groups=nbands)
         self.gradients_x = nn.Conv2d(in_channels=nbands,
@@ -110,3 +107,4 @@ class RegLoss(nn.Module):
         Ly = torch.abs(self.gradients_y(outputs))
         L = torch.mean((Lx + Ly) / 2)
         return L
+
