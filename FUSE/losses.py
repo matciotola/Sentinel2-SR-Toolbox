@@ -9,7 +9,7 @@ class StructLoss(nn.Module):
 
         self.eps = 1e-16
 
-        self.gradients_y = nn.Conv2d(in_channels=self.nbands_20,
+        self.gradients_y = nn.Conv2d(in_channels=self.nbands,
                                      padding='same', kernel_size=3,
                                      out_channels=nbands, bias=False, groups=nbands)
         self.gradients_x = nn.Conv2d(in_channels=nbands,

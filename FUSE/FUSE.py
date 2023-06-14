@@ -16,10 +16,7 @@ except:
 from Utils.dl_tools import open_config, generate_paths, TrainingDataset20m
 
 
-
-
 def FUSE(ordered_dict):
-
     bands_high = torch.clone(ordered_dict.bands_high)
     bands_low_lr = torch.clone(ordered_dict.bands_low_lr)
 
@@ -46,12 +43,14 @@ def FUSE(ordered_dict):
 
     if config.train:
         train_paths_10, train_paths_20, _ = generate_paths(config.training_img_root, config.training_img_names)
-        ds_train = TrainingDataset20m(train_paths_10, train_paths_20, normalize, input_prepro_20, get_patches, ratio, config.training_patch_size_20)
+        ds_train = TrainingDataset20m(train_paths_10, train_paths_20, normalize, input_prepro_20, get_patches, ratio,
+                                      config.training_patch_size_20)
         train_loader = DataLoader(ds_train, batch_size=config.batch_size, shuffle=True)
 
         if len(config.validation_img_names) != 0:
             val_paths_10, val_paths_20, _ = generate_paths(config.validation_img_root, config.validation_img_names)
-            ds_val = TrainingDataset20m(val_paths_10, val_paths_20, normalize, input_prepro_20, get_patches, ratio, config.training_patch_size_20)
+            ds_val = TrainingDataset20m(val_paths_10, val_paths_20, normalize, input_prepro_20, get_patches, ratio,
+                                        config.training_patch_size_20)
             val_loader = DataLoader(ds_val, batch_size=config.batch_size, shuffle=True)
         else:
             val_loader = None
@@ -66,11 +65,9 @@ def FUSE(ordered_dict):
                 os.makedirs('./Stats/FUSE')
             io.savemat('./Stats/DSen2/Training_20m.mat', history)
 
-
     bands_high_norm = normalize(bands_high)
     bands_low = upsample_protocol(bands_low_lr, bands_high_norm.shape)
     bands_low_norm = normalize(bands_low)
-
 
     input_10 = bands_high_norm.to(device)
     input_20 = bands_low_norm.to(device)
@@ -85,7 +82,6 @@ def FUSE(ordered_dict):
 
 
 def train(device, net, train_loader, config, val_loader=None):
-
     criterion_spec = SpectralLoss().to(device)
     criterion_struct = StructLoss().to(device)
     criterion_reg = RegLoss().to(device)
@@ -115,7 +111,6 @@ def train(device, net, train_loader, config, val_loader=None):
         net.train()
 
         for i, data in enumerate(train_loader):
-
             optim.zero_grad()
 
             inputs_10, inputs_20, labels = data
@@ -145,7 +140,6 @@ def train(device, net, train_loader, config, val_loader=None):
             net.eval()
             with torch.no_grad():
                 for i, data in enumerate(val_loader):
-
                     inputs_10, inputs_20, labels = data
                     inputs_10 = inputs_10.to(device)
                     inputs_20 = inputs_20.to(device)
@@ -165,7 +159,6 @@ def train(device, net, train_loader, config, val_loader=None):
             running_val_loss_struct = running_val_loss_struct / len(val_loader)
             running_val_loss_reg = running_val_loss_reg / len(val_loader)
 
-
         history_loss_spec.append(running_loss_spec)
         history_loss_struct.append(running_loss_struct)
         history_loss_reg.append(running_loss_reg)
@@ -173,8 +166,13 @@ def train(device, net, train_loader, config, val_loader=None):
         history_val_loss_struct.append(running_val_loss_struct)
         history_val_loss_reg.append(running_val_loss_reg)
 
-        pbar.set_postfix({'spec loss': running_loss_spec, 'struct loss': running_loss_struct, 'reg loss': running_loss_reg, 'val spec loss': running_val_loss_spec, 'val struct loss': running_val_loss_struct, 'val reg loss': running_val_loss_reg})
+        pbar.set_postfix(
+            {'spec loss': running_loss_spec, 'struct loss': running_loss_struct, 'reg loss': running_loss_reg,
+             'val spec loss': running_val_loss_spec, 'val struct loss': running_val_loss_struct,
+             'val reg loss': running_val_loss_reg})
 
-    history = {'spec_loss': history_loss_spec, 'struct_loss': history_loss_struct, 'reg_loss': history_loss_reg, 'val_spec_loss': history_val_loss_spec, 'val_struct_loss': history_val_loss_struct, 'val_reg_loss': history_val_loss_reg}
+    history = {'spec_loss': history_loss_spec, 'struct_loss': history_loss_struct, 'reg_loss': history_loss_reg,
+               'val_spec_loss': history_val_loss_spec, 'val_struct_loss': history_val_loss_struct,
+               'val_reg_loss': history_val_loss_reg}
 
     return net, history
