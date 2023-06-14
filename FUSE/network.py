@@ -45,13 +45,10 @@ class FUSEModel(nn.Module):
         self.conv3 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, padding='same')
         self.conv4 = nn.Conv2d(in_channels=32, out_channels=bands_20, kernel_size=3, padding='same')
 
-    def forward(self, bands_high, bands_low_lr):
-        bands_low = F.interpolate(bands_low_lr, scale_factor=self.ratio, mode='bicubic', align_corners=False)
-
+    def forward(self, bands_high, bands_low):
         bands_high_hp = bands_high - self.depthconv_10(bands_high)
-        bands_low_lr_hp = bands_low_lr - self.depthconv_20(bands_low_lr)
+        bands_low_hp = bands_low - self.depthconv_20(bands_low)
 
-        bands_low_hp = F.interpolate(bands_low_lr_hp, scale_factor=self.ratio, mode='bicubic', align_corners=False)
         inp = torch.cat((bands_high_hp, bands_low_hp), dim=1)
 
         x = self.batchnorm(inp)
