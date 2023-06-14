@@ -35,7 +35,7 @@ def FUSE(ordered_dict):
 
     model_weights_path = config.model_weights_path
 
-    net = FUSEModel((config.number_bands_10, config.number_bands_20))
+    net = FUSEModel(config.number_bands_10, config.number_bands_20)
 
     if not config.train or config.resume:
         if not model_weights_path:
