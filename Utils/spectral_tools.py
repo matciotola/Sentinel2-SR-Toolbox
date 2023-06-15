@@ -292,7 +292,7 @@ def LPFilterPlusDec(img, ratio):
 def LPFilterPlusDecTorch(img, ratio):
     from math import log2, ceil
     from torchvision.transforms.functional import resize
-    from Wavelet.SWT import SWTForward, SWTInverse
+    from Utils.Wavelet.SWT import SWTForward, SWTInverse
     import pywt
     levels = ceil(log2(ratio))
 
@@ -316,8 +316,7 @@ def LPFilterPlusDecTorch(img, ratio):
 
 def LPFilter(img, ratio):
     from math import log2, ceil
-    from torchvision.transforms.functional import resize
-    from Wavelet.SWT import SWTForward, SWTInverse
+    from Utils.Wavelet.SWT import SWTForward, SWTInverse
     import pywt
     levels = ceil(log2(ratio))
     filters = pywt.Wavelet(filter_bank=tuple(starck_and_murtagh_filters()))
