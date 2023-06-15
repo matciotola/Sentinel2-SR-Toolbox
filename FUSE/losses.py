@@ -4,22 +4,18 @@ from torch import nn as nn
 
 class SpectralLoss(nn.Module):
     def __init__(self, ):
-        # Class initialization
         super(SpectralLoss, self).__init__()
-
-        # Conversion of filters in Tensor
         self.loss = nn.L1Loss(reduction='mean')
 
     def forward(self, outputs, labels):
-        ## Pad added to have same output
         L = self.loss(outputs, labels)
         L = torch.mean(L)
 
         return L
 
+
 class StructLoss(nn.Module):
     def __init__(self, nbands=6):
-        # Class initialization
         super(StructLoss, self).__init__()
 
         self.eps = 1e-16
@@ -52,13 +48,9 @@ class StructLoss(nn.Module):
         self.gradients_D.requires_grad_ = False
         self.gradients_d.requires_grad_ = False
 
-        # Conversion of filters in Tensor
-
         self.loss = nn.L1Loss(reduction='mean')
 
     def forward(self, outputs, labels):
-
-        ## Pad added to have same output
         g_out_y = self.gradients_y(outputs)
         g_out_x = self.gradients_x(outputs)
         g_out_D = self.gradients_D(outputs)
@@ -73,18 +65,14 @@ class StructLoss(nn.Module):
 
         g_labels = torch.cat([g_lab_y, g_lab_x, g_lab_D, g_lab_d], dim=1)
         L = torch.sqrt(self.loss(g_out, g_labels) + self.eps)
-        # L = self.loss(g_out, g_labels)
         L = torch.mean(L)
 
         return L
 
 
-
 class RegLoss(nn.Module):
     def __init__(self, nbands=6):
-        # Class initialization
         super(RegLoss, self).__init__()
-
 
         self.l1_regularization = nn.Conv2d(in_channels=nbands,
                                            padding='same', kernel_size=2,
