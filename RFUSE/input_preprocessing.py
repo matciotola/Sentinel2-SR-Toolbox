@@ -23,7 +23,7 @@ def normalize(bands, ratio=2, shift=2):
     std = torch.std(denormalized, dim=(2, 3), keepdim=True)
     normalized = shift + (denormalized - mean) / std
 
-    return normalized, mean, std
+    return normalized#, mean, std
 
 
 def denormalize(bands, mean, std, shift=2):

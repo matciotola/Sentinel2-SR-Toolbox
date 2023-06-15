@@ -17,7 +17,6 @@ except:
 from Utils.dl_tools import open_config, generate_paths, TrainingDataset20m, get_patches
 
 
-
 def R_FUSE(ordered_dict):
     bands_high = torch.clone(ordered_dict.bands_high)
     bands_low_lr = torch.clone(ordered_dict.bands_low_lr)
@@ -67,12 +66,10 @@ def R_FUSE(ordered_dict):
                 os.makedirs('./Stats/R-FUSE')
             io.savemat('./Stats/R-FUSE/Training_20m.mat', history)
 
-
     # Target Adaptive Phase
 
     mean = torch.mean(bands_low_lr, dim=(2, 3), keepdim=True)
     std = torch.std(bands_low_lr, dim=(2, 3), keepdim=True)
-
 
     bands_high_norm = normalize(bands_high)
     bands_low_lr_norm = normalize(bands_low_lr)
@@ -168,7 +165,6 @@ def train(device, net, train_loader, config, val_loader=None):
 
 
 def target_adaptation(device, net, input_10, input_20, struct_ref, config):
-
     optim = torch.optim.Adam(net.parameters(), lr=config.ta_learning_rate)
     net = net.to(device)
     input_10 = input_10.to(device)
@@ -184,7 +180,6 @@ def target_adaptation(device, net, input_10, input_20, struct_ref, config):
 
     pbar = tqdm(range(config.ta_epochs))
     for epoch in pbar:
-
         optim.zero_grad()
         outputs = net(input_10, input_20)
         spec_loss = spec_criterion(outputs, input_20)
