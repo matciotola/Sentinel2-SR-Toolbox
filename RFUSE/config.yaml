@@ -1,0 +1,42 @@
+train: False
+
+gpu_number: '0'
+
+training_img_root: ''
+validation_img_root: ''
+
+training_img_names: ['']
+validation_img_names: []
+
+number_bands_10: 4
+number_bands_20: 6
+
+# Training settings
+
+resume: False
+save_weights: False
+save_weights_path: ''
+save_training_stats: False
+
+# Training hyperparameters
+
+learning_rate: 0.0001
+epochs: 100
+batch_size: 64
+model_weights_path: ''
+training_patch_size_20: 32
+training_patch_size_10: 64
+
+# Training settings
+
+ta_save_weights: False
+ta_save_weights_path: ''
+ta_save_training_stats: False
+
+# Target-Adaptive hyperparameters
+
+lambda_1: 1.0
+lambda_2: 0.1
+
+ta_epochs: 50
+ta_learning_rate: 0.0001

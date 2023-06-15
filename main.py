@@ -14,6 +14,8 @@ from CS.GS import GS, GSA
 from MRA.GLP import MTF_GLP, MTF_GLP_FS, MTF_GLP_HPM, MTF_GLP_HPM_H, MTF_GLP_HPM_R
 from MRA.AWLP import AWLP
 from DSen2.DSen2 import DSen2
+from FUSE.FUSE import FUSE
+from RFUSE.R_FUSE import R_FUSE
 from Utils.dl_tools import generate_paths, open_tiff
 from recordclass import recordclass
 from Utils import load_save_tools as ut
@@ -24,7 +26,7 @@ pansharpening_algorithm_dict = {'BDSD': BDSD, 'GS': GS, 'GSA': GSA, 'BT-H': BT_H
                                 'MTF-GLP-HPM': MTF_GLP_HPM, 'MTF-GLP-HPM-H': MTF_GLP_HPM_H, # Multi-Resolution analysis
                                 'MTF-GLP-HPM-R': MTF_GLP_HPM_R # Multi-Resolution analysis
                                 }
-deep_learning_algorithm_dict = {'DSen2': DSen2}
+deep_learning_algorithm_dict = {'DSen2': DSen2, 'FUSE': FUSE, 'R-FUSE': R_FUSE}
 
 pan_generation_dict = {'selection': selection, 'synthesize': synthesize}
 

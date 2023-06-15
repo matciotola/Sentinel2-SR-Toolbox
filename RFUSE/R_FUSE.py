@@ -1,0 +1,204 @@
+import os
+from scipy import io
+import torch
+from torch import nn
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+
+try:
+    from network import RFUSEModel
+    from losses import SpectralLoss
+    from input_preprocessing import normalize, denormalize, input_prepro_rr, input_prepro_fr, upsample_protocol
+except:
+    from RFUSE.network import FUSEModel
+    from RFUSE.losses import SpectralLoss, StructLoss, RegLoss
+    from RFUSE.input_preprocessing import normalize, denormalize, input_prepro_rr, input_prepro_fr, upsample_protocol
+
+from Utils.dl_tools import open_config, generate_paths, TrainingDataset20m, get_patches
+
+
+
+def R_FUSE(ordered_dict):
+    bands_high = torch.clone(ordered_dict.bands_high)
+    bands_low_lr = torch.clone(ordered_dict.bands_low_lr)
+
+    config_path = 'config.yaml'
+    if not os.path.exists(config_path):
+        config_path = os.path.join('RFUSE', 'config.yaml')
+
+    config = open_config(config_path)
+    ratio = 2
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = config.gpu_number
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    model_weights_path = config.model_weights_path
+
+    net = RFUSEModel(config.number_bands_10, config.number_bands_20)
+
+    if not config.train or config.resume:
+        if not model_weights_path:
+            model_weights_path = os.path.join('RFUSE', 'weights', 'R-FUSE.tar')
+        net.load_state_dict(torch.load(model_weights_path))
+
+    net = net.to(device)
+
+    if config.train:
+        train_paths_10, train_paths_20, _ = generate_paths(config.training_img_root, config.training_img_names)
+        ds_train = TrainingDataset20m(train_paths_10, train_paths_20, normalize, input_prepro_rr, get_patches, ratio,
+                                      config.training_patch_size_20, config.training_patch_size_10)
+        train_loader = DataLoader(ds_train, batch_size=config.batch_size, shuffle=True)
+
+        if len(config.validation_img_names) != 0:
+            val_paths_10, val_paths_20, _ = generate_paths(config.validation_img_root, config.validation_img_names)
+            ds_val = TrainingDataset20m(val_paths_10, val_paths_20, normalize, input_prepro_rr, get_patches, ratio,
+                                        config.training_patch_size_20, config.training_patch_size_10)
+            val_loader = DataLoader(ds_val, batch_size=config.batch_size, shuffle=True)
+        else:
+            val_loader = None
+
+        net, history = train(device, net, train_loader, config, val_loader)
+
+        if config.save_weights:
+            torch.save(net.state_dict(), config.save_weights_path)
+
+        if config.save_training_stats:
+            if not os.path.exists('./Stats/R-FUSE'):
+                os.makedirs('./Stats/R-FUSE')
+            io.savemat('./Stats/R-FUSE/Training_20m.mat', history)
+
+
+    # Target Adaptive Phase
+
+    mean = torch.mean(bands_low_lr, dim=(2, 3), keepdim=True)
+    std = torch.std(bands_low_lr, dim=(2, 3), keepdim=True)
+
+
+    bands_high_norm = normalize(bands_high)
+    bands_low_lr_norm = normalize(bands_low_lr)
+
+    struct_ref = input_prepro_fr(bands_high_norm, bands_low_lr_norm, ratio)
+
+    input_10 = bands_high_norm.to(device)
+    input_20 = bands_low_lr_norm.to(device)
+    struct_ref = struct_ref.to(device)
+
+    net, ta_history = target_adaptation(device, net, input_10, input_20, struct_ref, config)
+
+    if config.ta_save_weights:
+        torch.save(net.state_dict(), config.ta_save_weights_path)
+
+    if config.ta_save_training_stats:
+        if not os.path.exists('./Stats/R-FUSE'):
+            os.makedirs('./Stats/R-FUSE')
+        io.savemat('./Stats/R-FUSE/TA_R-Fuse.mat', ta_history)
+
+    net.eval()
+    with torch.no_grad():
+        fused = net(input_10, input_20)
+
+    fused = denormalize(fused, mean, std)
+
+    torch.cuda.empty_cache()
+
+    return fused.cpu().detach()
+
+
+def train(device, net, train_loader, config, val_loader=None):
+    criterion = nn.L1Loss(reduction='mean')
+    optim = torch.optim.Adam(net.parameters(), lr=config.learning_rate)
+    net = net.to(device)
+
+    history_loss = []
+    history_val_loss = []
+
+    pbar = tqdm(range(config.epochs))
+
+    for epoch in pbar:
+
+        pbar.set_description('Epoch %d/%d' % (epoch + 1, config.epochs))
+        running_loss = 0.0
+        running_val_loss = 0.0
+
+        net.train()
+
+        for i, data in enumerate(train_loader):
+            optim.zero_grad()
+
+            inputs_10, inputs_20, labels = data
+            inputs_10 = inputs_10.to(device)
+            inputs_20 = inputs_20.to(device)
+            labels = labels.to(device)
+
+            outputs = net(inputs_10, inputs_20)
+
+            loss = criterion(outputs, labels)
+
+            loss.backward()
+            optim.step()
+            running_loss += loss.item()
+
+        running_loss = running_loss / len(train_loader)
+
+        if val_loader is not None:
+            net.eval()
+            with torch.no_grad():
+                for i, data in enumerate(val_loader):
+                    inputs_10, inputs_20, labels = data
+                    inputs_10 = inputs_10.to(device)
+                    inputs_20 = inputs_20.to(device)
+                    labels = labels.to(device)
+
+                    outputs = net(inputs_10, inputs_20)
+
+                    val_loss = criterion(outputs, labels)
+                    running_val_loss += val_loss.item()
+
+            running_val_loss = running_val_loss / len(val_loader)
+
+        history_loss.append(running_loss)
+        history_val_loss.append(running_val_loss)
+
+        pbar.set_postfix(
+            {'loss': running_loss, 'val loss': running_val_loss})
+
+    history = {'loss': history_loss, 'val_loss': history_val_loss}
+
+    return net, history
+
+
+def target_adaptation(device, net, input_10, input_20, struct_ref, config):
+
+    optim = torch.optim.Adam(net.parameters(), lr=config.ta_learning_rate)
+    net = net.to(device)
+    input_10 = input_10.to(device)
+    input_20 = input_20.to(device)
+    struct_ref = struct_ref.to(device)
+    spec_criterion = SpectralLoss().to(device)
+    struct_criterion = nn.L1Loss(reduction='mean').to(device)
+
+    history_spec_loss = []
+    history_struct_loss = []
+
+    net.train()
+
+    pbar = tqdm(range(config.ta_epochs))
+    for epoch in pbar:
+
+        optim.zero_grad()
+        outputs = net(input_10, input_20)
+        spec_loss = spec_criterion(outputs, input_20)
+        struct_loss = struct_criterion(outputs, struct_ref)
+        loss = config.lambda_1 * spec_loss + config.lambda_2 * struct_loss
+        loss.backward()
+        optim.step()
+
+        history_spec_loss.append(spec_loss.item())
+        history_struct_loss.append(struct_loss.item())
+
+        pbar.set_postfix(
+            {'spec loss': spec_loss.item(), 'val loss': struct_loss.item()})
+
+    history = {'spec_loss': history_spec_loss, 'val_loss': history_struct_loss}
+
+    return net, history
