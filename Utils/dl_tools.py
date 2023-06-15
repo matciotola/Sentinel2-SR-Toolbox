@@ -105,7 +105,7 @@ class TrainingDataset60m(Dataset):
         return self.patches_high_lr[index], self.patches_intermediate_lr, self.patches_low_lr[index], self.patches_low[
             index]
 
-
+"""
 def get_patches(bands, patches_size=33):
     print('list_bands for patches: ' + str(len(bands)))
     patches = []
@@ -119,5 +119,16 @@ def get_patches(bands, patches_size=33):
             patches.append(p)
 
             cont += 1
+    patches = torch.cat(patches, dim=0)
+    return patches
+"""
+
+def get_patches(bands, patch_size=33):
+
+    patches = []
+    for i in range(bands.shape[2] // patch_size):
+        for j in range(bands.shape[1] // patch_size):
+            patches.append(bands[:, :, patch_size * i:patch_size * (i + 1), patch_size * j:patch_size * (j + 1)])
+
     patches = torch.cat(patches, dim=0)
     return patches
