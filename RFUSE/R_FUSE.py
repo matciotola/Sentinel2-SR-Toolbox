@@ -10,8 +10,8 @@ try:
     from losses import SpectralLoss
     from input_preprocessing import normalize, denormalize, input_prepro_rr, input_prepro_fr, upsample_protocol
 except:
-    from RFUSE.network import FUSEModel
-    from RFUSE.losses import SpectralLoss, StructLoss, RegLoss
+    from RFUSE.network import RFUSEModel
+    from RFUSE.losses import SpectralLoss
     from RFUSE.input_preprocessing import normalize, denormalize, input_prepro_rr, input_prepro_fr, upsample_protocol
 
 from Utils.dl_tools import open_config, generate_paths, TrainingDataset20m, get_patches
