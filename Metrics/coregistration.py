@@ -32,17 +32,17 @@ def stacked_fineshift(img, shift_r, shift_c, device, sz=5):
 
     condition = (r_frac == 1) * (c_frac == 1)
     if condition.count_nonzero() != 0:
-        img[:, condition, :, :] = half_pixel_shift(img[:, condition, :, :], 'SE', half_interp23tap_kernel(condition.count_nonzero().item()), device)
+        img[:, condition, :, :] = half_pixel_shift(img[:, condition, :, :], 'SE', half_interp23tap_kernel(condition.count_nonzero().item()))
     condition = (r_frac == 1) * (c_frac != 1)
     if condition.count_nonzero() != 0:
-        img[:, condition, :, :] = half_pixel_shift(img[:, condition, :, :], 'S', half_interp23tap_kernel(condition.count_nonzero().item()), device)
+        img[:, condition, :, :] = half_pixel_shift(img[:, condition, :, :], 'S', half_interp23tap_kernel(condition.count_nonzero().item()))
     condition = (c_frac == 1) * (r_frac != 1)
     if condition.count_nonzero() != 0:
-        img[:, condition, :, :] = half_pixel_shift(img[:, condition, :, :], 'E', half_interp23tap_kernel(condition.count_nonzero().item()), device)
+        img[:, condition, :, :] = half_pixel_shift(img[:, condition, :, :], 'E', half_interp23tap_kernel(condition.count_nonzero().item()))
 
-    cnt = sz // 2
-    b = torch.tensor(range(nbands), requires_grad=False).long()
-    kernel[b, :, cnt - r_int, cnt - c_int] = 1
+    cnt = torch.ones(nbands, requires_grad=False).long() * (sz // 2)
+
+    kernel[:, :, cnt - r_int, cnt - c_int] = 1
 
     shifted_img = F.conv2d(img, kernel, padding='same', groups=img.shape[1])
 
