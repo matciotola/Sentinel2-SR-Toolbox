@@ -7,13 +7,13 @@ from tqdm import tqdm
 try:
     from network import FUSEModel
     from losses import SpectralLoss, StructLoss, RegLoss
-    from input_preprocessing import normalize, denormalize, input_prepro_20, upsample_protocol, get_patches
+    from input_preprocessing import normalize, denormalize, input_prepro_20, upsample_protocol
 except:
     from FUSE.network import FUSEModel
     from FUSE.losses import SpectralLoss, StructLoss, RegLoss
     from FUSE.input_preprocessing import normalize, denormalize, input_prepro_20, upsample_protocol, get_patches
 
-from Utils.dl_tools import open_config, generate_paths, TrainingDataset20m
+from Utils.dl_tools import open_config, generate_paths, TrainingDataset20m, get_patches
 
 
 def FUSE(ordered_dict):
@@ -44,13 +44,13 @@ def FUSE(ordered_dict):
     if config.train:
         train_paths_10, train_paths_20, _ = generate_paths(config.training_img_root, config.training_img_names)
         ds_train = TrainingDataset20m(train_paths_10, train_paths_20, normalize, input_prepro_20, get_patches, ratio,
-                                      config.training_patch_size_20)
+                                      config.training_patch_size_20, config.training_patch_size_20)
         train_loader = DataLoader(ds_train, batch_size=config.batch_size, shuffle=True)
 
         if len(config.validation_img_names) != 0:
             val_paths_10, val_paths_20, _ = generate_paths(config.validation_img_root, config.validation_img_names)
             ds_val = TrainingDataset20m(val_paths_10, val_paths_20, normalize, input_prepro_20, get_patches, ratio,
-                                        config.training_patch_size_20)
+                                        config.training_patch_size_20, config.training_patch_size_20)
             val_loader = DataLoader(ds_val, batch_size=config.batch_size, shuffle=True)
         else:
             val_loader = None

@@ -37,7 +37,7 @@ def generate_paths(root, names):
 
 
 class TrainingDataset20m(Dataset):
-    def __init__(self, bands_high_paths, bands_low_lr_paths, norm, input_prepro, get_patches, ratio=2, patches_size=33):
+    def __init__(self, bands_high_paths, bands_low_lr_paths, norm, input_prepro, get_patches, ratio=2, patches_size_lr=33, patch_size_hr=33):
         super(TrainingDataset20m, self).__init__()
 
         bands_low_lr = []
@@ -56,9 +56,9 @@ class TrainingDataset20m(Dataset):
         bands_low_downsampled = norm(bands_low_downsampled)
         bands_low_lr = norm(bands_low_lr)
 
-        self.patches_high_lr = get_patches(bands_high_downsampled, patches_size)
-        self.patches_low_lr = get_patches(bands_low_downsampled, patches_size)
-        self.patches_low = get_patches(bands_low_lr, patches_size)
+        self.patches_high_lr = get_patches(bands_high_downsampled, patch_size_hr)
+        self.patches_low_lr = get_patches(bands_low_downsampled, patches_size_lr)
+        self.patches_low = get_patches(bands_low_lr, patch_size_hr)
 
     def __len__(self):
         return self.patches_high_lr.shape[0]
@@ -104,3 +104,20 @@ class TrainingDataset60m(Dataset):
     def __getitem__(self, index):
         return self.patches_high_lr[index], self.patches_intermediate_lr, self.patches_low_lr[index], self.patches_low[
             index]
+
+
+def get_patches(bands, patches_size=33):
+    print('list_bands for patches: ' + str(len(bands)))
+    patches = []
+
+    _, b, c, r = bands.shape
+    cont = 0
+    for i in range(0, r - patches_size, patches_size):
+        for j in range(0, c - patches_size, patches_size):
+            p = bands[:, :, i:i + patches_size, j:j + patches_size]
+
+            patches.append(p)
+
+            cont += 1
+    patches = torch.cat(patches, dim=0)
+    return patches
