@@ -63,7 +63,7 @@ def FUSE(ordered_dict):
         if config.save_training_stats:
             if not os.path.exists('./Stats/FUSE'):
                 os.makedirs('./Stats/FUSE')
-            io.savemat('./Stats/FUSE/Training_20m.mat', history)
+            io.savemat('./Stats/FUSE/Training_FUSE.mat', history)
 
     bands_high_norm = normalize(bands_high)
     bands_low = upsample_protocol(bands_low_lr, ratio)
