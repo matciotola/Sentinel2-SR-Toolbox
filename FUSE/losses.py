@@ -9,7 +9,6 @@ class SpectralLoss(nn.Module):
 
     def forward(self, outputs, labels):
         L = self.loss(outputs, labels)
-        L = torch.mean(L)
 
         return L
 
@@ -65,7 +64,6 @@ class StructLoss(nn.Module):
 
         g_labels = torch.cat([g_lab_y, g_lab_x, g_lab_D, g_lab_d], dim=1)
         L = torch.sqrt(self.loss(g_out, g_labels) + self.eps)
-        L = torch.mean(L)
 
         return L
 
