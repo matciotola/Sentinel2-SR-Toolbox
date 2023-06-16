@@ -138,6 +138,8 @@ if __name__ == '__main__':
                     gc.collect()
 
             exp_input.bands_high = bands_high
+            exp_input.bands_intermediate = bands_intermediate
+            exp_input.bands_low_lr = bands_low_lr
             for dl_algorithm in config.deep_learning_algorithms:
                 print('Running algorithm: ' + dl_algorithm)
                 method = deep_learning_algorithm_dict[dl_algorithm]

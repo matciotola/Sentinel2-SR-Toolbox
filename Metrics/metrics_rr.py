@@ -238,10 +238,9 @@ class SAM(nn.Module):
 
 
 class Q(nn.Module):
-    def __init__(self, nbands, device, block_size=32):
+    def __init__(self, nbands, block_size=32):
         super(Q, self).__init__()
         self.block_size = block_size
-        self.device = device
         self.N = block_size ** 2
         filter_shape = (nbands, 1, self.block_size, self.block_size)
         kernel = torch.ones(filter_shape, dtype=torch.float32)
@@ -253,7 +252,6 @@ class Q(nn.Module):
                                    bias=False, device=self.device)
         self.depthconv.weight.data = kernel
         self.depthconv.weight.requires_grad = False
-        self.depthconv.to(self.device)
         self.depthconv = self.depthconv.float()
 
     def forward(self, outputs, labels):
