@@ -1,9 +1,10 @@
 import os.path
-from osgeo import gdal
 import torch
 from torch.utils.data import Dataset
 import yaml
 from recordclass import recordclass
+
+from Utils.load_save_tools import open_tiff
 
 
 def read_yaml(file_path):
@@ -14,13 +15,6 @@ def read_yaml(file_path):
 def open_config(file_path):
     yaml_file = read_yaml(file_path)
     return recordclass('config', yaml_file.keys())(*yaml_file.values())
-
-
-def open_tiff(path):
-    bands = gdal.Open(path)
-    bands = bands.ReadAsArray().astype('float32')
-    bands = torch.Tensor(bands)[None, :, :, :]
-    return bands
 
 
 def generate_paths(root, names):
