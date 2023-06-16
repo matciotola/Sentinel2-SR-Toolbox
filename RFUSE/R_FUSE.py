@@ -4,7 +4,6 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from torchvision.transforms import functional as F
 
 try:
     from network import RFUSEModel
@@ -42,7 +41,7 @@ def R_FUSE(ordered_dict):
     if not config.train or config.resume:
         if not model_weights_path:
             model_weights_path = os.path.join('RFUSE', 'weights', 'R-FUSE.tar')
-        #net.load_state_dict(torch.load(model_weights_path))
+        net.load_state_dict(torch.load(model_weights_path))
 
     net = net.to(device)
 

@@ -1,4 +1,4 @@
-train: True
+train: False
 
 gpu_number: '0'
 
