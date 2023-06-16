@@ -115,13 +115,12 @@ class ReproQ(nn.Module):
 
 class D_rho(nn.Module):
 
-    def __init__(self, sigma, device):
+    def __init__(self, sigma):
         # Class initialization
         super(D_rho, self).__init__()
 
         # Parameters definition:
-        self.scale = sigma
-        self.device = device
+        self.scale = sigma // 2
 
     def forward(self, outputs, labels):
         Y = torch.ones((outputs.shape[0], outputs.shape[1], outputs.shape[2], outputs.shape[3], labels.shape[1]),
@@ -131,7 +130,7 @@ class D_rho(nn.Module):
             Y[:, :, :, :, i] = torch.clamp(xcorr_torch(outputs,
                                                        torch.unsqueeze(labels[:, i, :, :],
                                                                        1),
-                                                       self.scale, self.device), min=-1.0)
+                                                       self.scale, outputs.device), min=-1.0)
 
         Y = torch.amax(Y, -1)
         Y = torch.clip(Y, -1, 1)

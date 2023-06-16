@@ -7,8 +7,9 @@ import warnings
 warnings.filterwarnings("ignore", message="Using padding='same' with even kernel lengths ")
 
 
-def stacked_fineshift(img, shift_r, shift_c, device, sz=5):
+def stacked_fineshift(img, shift_r, shift_c, sz=5):
     img = torch.clone(img).double()
+    device = img.device
     nbands = img.shape[1]
     kernel = torch.zeros(nbands, 1, sz, sz, device=device, dtype=img.dtype, requires_grad=False)
 
@@ -39,12 +40,14 @@ def stacked_fineshift(img, shift_r, shift_c, device, sz=5):
     condition = (c_frac == 1) * (r_frac != 1)
     if condition.count_nonzero() != 0:
         img[:, condition, :, :] = half_pixel_shift(img[:, condition, :, :], 'E', half_interp23tap_kernel(condition.count_nonzero().item()))
-
+    """
     cnt = torch.ones(nbands, requires_grad=False).long() * (sz // 2)
 
     kernel[:, :, cnt - r_int, cnt - c_int] = 1
 
     shifted_img = F.conv2d(img, kernel, padding='same', groups=img.shape[1])
+    """
+    shifted_img = img
 
     return shifted_img
 

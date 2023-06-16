@@ -4,8 +4,9 @@ import numpy as np
 
 import copy
 import gc
+from recordclass import recordclass
 
-from Utils.pan_generation import selection, synthesize
+import csv
 
 from CS.PRACS import PRACS
 from CS.Brovey import BT_H
@@ -16,10 +17,14 @@ from MRA.AWLP import AWLP
 from DSen2.DSen2 import DSen2
 from FUSE.FUSE import FUSE
 from RFUSE.R_FUSE import R_FUSE
-from Utils.dl_tools import generate_paths, open_tiff
-from recordclass import recordclass
+
+from Metrics.evaluation import evaluation_rr, evaluation_fr
+
+from Utils.dl_tools import generate_paths
+from Utils.load_save_tools import open_tiff
 from Utils import load_save_tools as ut
 from Utils.image_preprocessing import downsample_protocol
+from Utils.pan_generation import selection, synthesize
 
 pansharpening_algorithm_dict = {'BDSD': BDSD, 'GS': GS, 'GSA': GSA, 'BT-H': BT_H, 'PRACS': PRACS, # Component substitution
                                 'AWLP': AWLP, 'MTF-GLP': MTF_GLP, 'MTF-GLP-FS': MTF_GLP_FS, # Multi-Resolution analysis
@@ -29,6 +34,11 @@ pansharpening_algorithm_dict = {'BDSD': BDSD, 'GS': GS, 'GSA': GSA, 'BT-H': BT_H
 deep_learning_algorithm_dict = {'DSen2': DSen2, 'FUSE': FUSE, 'R-FUSE': R_FUSE}
 
 pan_generation_dict = {'selection': selection, 'synthesize': synthesize}
+
+fieldnames_rr = ['Method', 'ERGAS', 'SAM', 'Q', 'Q2n']
+fieldnames_fr = ['Method', 'R-ERGAS', 'R-SAM', 'R-Q', 'R-Q2n', 'D_rho']
+
+
 
 def pansharp_method(method, input_info):
 
@@ -74,7 +84,10 @@ if __name__ == '__main__':
     paths_10, paths_20, paths_60 = generate_paths(config.tiff_root, config.tiff_images)
 
     for experiment_type in config.experiment_type:
+
         for scale in config.bands_sr:
+            metrics_rr = []
+            metrics_fr = []
 
             if experiment_type == 'FR':
                 geo_info = ut.extract_info(paths_10[0])
@@ -100,6 +113,7 @@ if __name__ == '__main__':
                 bands_low_lr = open_tiff(paths_60[0])
 
             if experiment_type == 'RR':
+                gt = torch.clone(bands_low_lr)
                 bands_high, bands_intermediate, bands_low_lr = downsample_protocol(bands_high, bands_intermediate, bands_low_lr, exp_info['ratio'])
 
             bands_low = ideal_interpolator(bands_low_lr, exp_info['ratio'])
@@ -130,6 +144,16 @@ if __name__ == '__main__':
                     method = pansharpening_algorithm_dict[algorithm]
                     fused = pansharp_method(method, exp_input)
 
+                    if experiment_type == 'RR':
+                        metrics_values_rr = list(evaluation_rr(fused, bands_low_lr, ratio=exp_info['ratio']))
+                        metrics_values_rr.insert(0, gen + algorithm)
+                        metrics_values_rr_dict = dict(zip(fieldnames_rr, metrics_values_rr))
+                        metrics_rr.append(metrics_values_rr_dict)
+                    else:
+                        metrics_values_fr = list(evaluation_fr(fused, bands_high, bands_low_lr, ratio=exp_info['ratio']))
+                        metrics_values_fr.insert(0, gen + algorithm)
+                        metrics_values_fr_dict = dict(zip(fieldnames_fr, metrics_values_fr))
+                        metrics_fr.append(metrics_values_fr_dict)
                     if config.save_results:
                         save_root = os.path.join(config.save_root, config.tiff_images[0], experiment_type, scale)
                         ut.save_tiff(np.squeeze(fused.numpy(), axis=0), save_root, gen + algorithm + '.tiff', geo_info)
@@ -144,6 +168,16 @@ if __name__ == '__main__':
                 print('Running algorithm: ' + dl_algorithm)
                 method = deep_learning_algorithm_dict[dl_algorithm]
                 fused = method(exp_input)
+                if experiment_type == 'RR':
+                    metrics_values_rr = list(evaluation_rr(fused, gt, ratio=exp_info['ratio']))
+                    metrics_values_rr.insert(0, dl_algorithm)
+                    metrics_values_rr_dict = dict(zip(fieldnames_rr, metrics_values_rr))
+                    metrics_rr.append(metrics_values_rr_dict)
+                else:
+                    metrics_values_fr = list(evaluation_fr(fused, bands_high, bands_low_lr, ratio=exp_info['ratio']))
+                    metrics_values_fr.insert(0, dl_algorithm)
+                    metrics_values_fr_dict = dict(zip(fieldnames_fr, metrics_values_fr))
+                    metrics_fr.append(metrics_values_fr_dict)
                 if config.save_results:
                     save_root = os.path.join(config.save_root, config.tiff_images[0], experiment_type, scale)
                     ut.save_tiff(np.squeeze(fused.numpy(), axis=0), save_root, dl_algorithm + '.tiff', geo_info)
@@ -151,4 +185,16 @@ if __name__ == '__main__':
                 del fused
                 torch.cuda.empty_cache()
                 gc.collect()
+
+            if experiment_type == 'RR':
+                with open('Metrics_RR_' + config.tiff_images[0] + '_' + scale + '.csv', 'w', encoding='UTF8', newline='') as f:
+                    writer = csv.DictWriter(f, fieldnames=fieldnames_rr)
+                    writer.writeheader()
+                    writer.writerows(metrics_rr)
+            else:
+                with open('Metrics_FR_' + config.tiff_images[0] + '_' + scale + '.csv', 'w', encoding='UTF8', newline='') as f:
+                    writer = csv.DictWriter(f, fieldnames=fieldnames_fr)
+                    writer.writeheader()
+                    writer.writerows(metrics_fr)
+
 

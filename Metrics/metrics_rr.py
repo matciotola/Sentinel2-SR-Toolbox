@@ -249,7 +249,7 @@ class Q(nn.Module):
                                    out_channels=nbands,
                                    groups=nbands,
                                    kernel_size=kernel.shape,
-                                   bias=False, device=self.device)
+                                   bias=False)
         self.depthconv.weight.data = kernel
         self.depthconv.weight.requires_grad = False
         self.depthconv = self.depthconv.float()

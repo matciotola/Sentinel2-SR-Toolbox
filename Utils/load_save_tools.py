@@ -1,3 +1,4 @@
+import torch
 from osgeo import gdal
 import os
 import numpy as np
@@ -57,3 +58,10 @@ def save_tiff(img, root, filename, info, ratio=2, type='uint16', save_geo_info=T
     del driver
     del writer
     return
+
+
+def open_tiff(path):
+    bands = gdal.Open(path)
+    bands = bands.ReadAsArray().astype('float32')
+    bands = torch.Tensor(bands)[None, :, :, :]
+    return bands
