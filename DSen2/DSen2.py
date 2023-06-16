@@ -154,7 +154,7 @@ def DSen2_60(ordered_dict):
                 os.makedirs('./Stats/DSen2')
             io.savemat('./Stats/DSen2/Training_60m.mat', history)
 
-    bands_high_norm = normalize(bands_high)
+    bands_high_norm = normalize(bands_high[:, [2, 1, 0, 3], :, :])
     bands_intermediate_lr_norm = normalize(bands_intermediate_lr)
     bands_low_lr_norm = normalize(bands_low_lr)
 
@@ -213,7 +213,7 @@ def train(device, net, train_loader, config, val_loader=None):
                 inputs_10, inputs_20, inputs_60, labels = data
                 inputs_60 = inputs_60.to(device)
 
-            inputs_10 = inputs_10.to(device)
+            inputs_10 = inputs_10[:, [2, 1, 0, 3], :, :].to(device)
             inputs_20 = inputs_20.to(device)
             labels = labels.to(device)
 
