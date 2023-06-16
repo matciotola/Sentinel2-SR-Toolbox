@@ -127,7 +127,7 @@ def get_patches(bands, patch_size=33):
 
     patches = []
     for i in range(bands.shape[2] // patch_size):
-        for j in range(bands.shape[1] // patch_size):
+        for j in range(bands.shape[3] // patch_size):
             patches.append(bands[:, :, patch_size * i:patch_size * (i + 1), patch_size * j:patch_size * (j + 1)])
 
     patches = torch.cat(patches, dim=0)

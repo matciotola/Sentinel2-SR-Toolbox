@@ -21,14 +21,14 @@ def normalize(bands, ratio=2, shift=2):
 
     mean = torch.mean(denormalized, dim=(2, 3), keepdim=True)
     std = torch.std(denormalized, dim=(2, 3), keepdim=True)
-    normalized = shift + (denormalized - mean) / std
+    normalized = shift + ((bands - mean) / std)
 
     return normalized
 
 
 def denormalize(bands, mean, std, shift=2):
 
-    denormalized = (bands - shift) * std + mean
+    denormalized = (bands - shift) * std.to(bands.device) + mean.to(bands.device)
 
     return denormalized
 
@@ -53,15 +53,16 @@ def upsample_protocol(img, ratio):
 
 def input_prepro_rr(bands_high, bands_low, ratio):
     bands_high_lr = downsample_protocol(bands_high, ratio)
-    bands_low_lr = downsample_protocol(bands_low, ratio)
-
+    bands_low_lr_lr = downsample_protocol(bands_low, ratio)
+    #bands_low_lr = upsample_protocol(bands_low_lr_lr, ratio)
+    bands_low_lr = F.interpolate(bands_low_lr_lr, scale_factor=ratio, mode='bicubic')
     return bands_high_lr, bands_low_lr, bands_low
 
 
 def input_prepro_fr(bands_high, bands_low_lr, ratio):
+    bands_low = F.interpolate(bands_low_lr, scale_factor=ratio, mode='bicubic')
     struct_reference = fuseUpGenDetailRef(bands_high, bands_low_lr, ratio)
-
-    return bands_high, bands_low_lr, struct_reference
+    return bands_high, bands_low, bands_low_lr, struct_reference
 
 
 def fuseUpGenDetailRef(bands_high, bands_low_lr, ratio=2, w_size=3, shrink=5):

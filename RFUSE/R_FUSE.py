@@ -4,6 +4,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from torchvision.transforms import functional as F
 
 try:
     from network import RFUSEModel
@@ -11,7 +12,7 @@ try:
     from input_preprocessing import normalize, denormalize, input_prepro_rr, input_prepro_fr, upsample_protocol
 except:
     from RFUSE.network import RFUSEModel
-    from RFUSE.losses import SpectralLoss
+    from RFUSE.losses import SpectralLoss, StructLoss
     from RFUSE.input_preprocessing import normalize, denormalize, input_prepro_rr, input_prepro_fr, upsample_protocol
 
 from Utils.dl_tools import open_config, generate_paths, TrainingDataset20m, get_patches
@@ -20,6 +21,9 @@ from Utils.dl_tools import open_config, generate_paths, TrainingDataset20m, get_
 def R_FUSE(ordered_dict):
     bands_high = torch.clone(ordered_dict.bands_high)
     bands_low_lr = torch.clone(ordered_dict.bands_low_lr)
+
+    if bands_low_lr.shape[1] < 6:
+        return torch.zeros(bands_low_lr.shape[0], bands_low_lr.shape[1], bands_high.shape[2], bands_high.shape[3], device=bands_low_lr.device, dtype=bands_low_lr.dtype)
 
     config_path = 'config.yaml'
     if not os.path.exists(config_path):
@@ -38,7 +42,7 @@ def R_FUSE(ordered_dict):
     if not config.train or config.resume:
         if not model_weights_path:
             model_weights_path = os.path.join('RFUSE', 'weights', 'R-FUSE.tar')
-        net.load_state_dict(torch.load(model_weights_path))
+        #net.load_state_dict(torch.load(model_weights_path))
 
     net = net.to(device)
 
@@ -74,13 +78,14 @@ def R_FUSE(ordered_dict):
     bands_high_norm = normalize(bands_high)
     bands_low_lr_norm = normalize(bands_low_lr)
 
-    struct_ref = input_prepro_fr(bands_high_norm, bands_low_lr_norm, ratio)
+    bands_high_norm, bands_low_lr_norm, spec_ref, struct_ref = input_prepro_fr(bands_high_norm, bands_low_lr_norm, ratio)
 
     input_10 = bands_high_norm.to(device)
     input_20 = bands_low_lr_norm.to(device)
+    spec_ref = spec_ref.to(device)
     struct_ref = struct_ref.to(device)
 
-    net, ta_history = target_adaptation(device, net, input_10, input_20, struct_ref, config)
+    net, ta_history = target_adaptation(device, net, input_10, input_20, spec_ref, struct_ref, config)
 
     if config.ta_save_weights:
         torch.save(net.state_dict(), config.ta_save_weights_path)
@@ -164,14 +169,15 @@ def train(device, net, train_loader, config, val_loader=None):
     return net, history
 
 
-def target_adaptation(device, net, input_10, input_20, struct_ref, config):
+def target_adaptation(device, net, input_10, input_20, spectral_ref, struct_ref, config):
     optim = torch.optim.Adam(net.parameters(), lr=config.ta_learning_rate)
     net = net.to(device)
     input_10 = input_10.to(device)
     input_20 = input_20.to(device)
+    spectral_ref = spectral_ref.to(device)
     struct_ref = struct_ref.to(device)
     spec_criterion = SpectralLoss().to(device)
-    struct_criterion = nn.L1Loss(reduction='mean').to(device)
+    struct_criterion = StructLoss().to(device)
 
     history_spec_loss = []
     history_struct_loss = []
@@ -182,7 +188,7 @@ def target_adaptation(device, net, input_10, input_20, struct_ref, config):
     for epoch in pbar:
         optim.zero_grad()
         outputs = net(input_10, input_20)
-        spec_loss = spec_criterion(outputs, input_20)
+        spec_loss = spec_criterion(outputs, spectral_ref)
         struct_loss = struct_criterion(outputs, struct_ref)
         loss = config.lambda_1 * spec_loss + config.lambda_2 * struct_loss
         loss.backward()
@@ -192,8 +198,8 @@ def target_adaptation(device, net, input_10, input_20, struct_ref, config):
         history_struct_loss.append(struct_loss.item())
 
         pbar.set_postfix(
-            {'spec loss': spec_loss.item(), 'val loss': struct_loss.item()})
+            {'spec loss': spec_loss.item(), 'struct loss': struct_loss.item()})
 
-    history = {'spec_loss': history_spec_loss, 'val_loss': history_struct_loss}
+    history = {'spec_loss': history_spec_loss, 'struct_loss': history_struct_loss}
 
     return net, history

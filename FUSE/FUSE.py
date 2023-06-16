@@ -11,7 +11,7 @@ try:
 except:
     from FUSE.network import FUSEModel
     from FUSE.losses import SpectralLoss, StructLoss, RegLoss
-    from FUSE.input_preprocessing import normalize, denormalize, input_prepro_20, upsample_protocol, get_patches
+    from FUSE.input_preprocessing import normalize, denormalize, input_prepro_20, upsample_protocol
 
 from Utils.dl_tools import open_config, generate_paths, TrainingDataset20m, get_patches
 
@@ -19,6 +19,9 @@ from Utils.dl_tools import open_config, generate_paths, TrainingDataset20m, get_
 def FUSE(ordered_dict):
     bands_high = torch.clone(ordered_dict.bands_high)
     bands_low_lr = torch.clone(ordered_dict.bands_low_lr)
+
+    if bands_low_lr.shape[1] < 6:
+        return torch.zeros(bands_low_lr.shape[0], bands_low_lr.shape[1], bands_high.shape[2], bands_high.shape[3], device=bands_low_lr.device, dtype=bands_low_lr.dtype)
 
     config_path = 'config.yaml'
     if not os.path.exists(config_path):
