@@ -62,6 +62,8 @@ def R_FUSE(ordered_dict):
         net, history = train(device, net, train_loader, config, val_loader)
 
         if config.save_weights:
+            if not os.path.exists(config.save_weights_path):
+                os.makedirs(config.save_weights_path)
             torch.save(net.state_dict(), config.save_weights_path)
 
         if config.save_training_stats:
@@ -87,6 +89,8 @@ def R_FUSE(ordered_dict):
     net, ta_history = target_adaptation(device, net, input_10, input_20, spec_ref, struct_ref, config)
 
     if config.ta_save_weights:
+        if not os.path.exists(config.ta_save_weights_path):
+            os.makedirs(config.ta_save_weights_path)
         torch.save(net.state_dict(), config.ta_save_weights_path)
 
     if config.ta_save_training_stats:
