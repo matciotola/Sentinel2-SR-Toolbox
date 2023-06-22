@@ -145,12 +145,12 @@ if __name__ == '__main__':
                     fused = pansharp_method(method, exp_input)
 
                     if experiment_type == 'RR':
-                        metrics_values_rr = list(evaluation_rr(fused, bands_low_lr, ratio=exp_info['ratio']))
+                        metrics_values_rr = list(evaluation_rr(fused, gt, ratio=exp_info['ratio']))
                         metrics_values_rr.insert(0, gen + algorithm)
                         metrics_values_rr_dict = dict(zip(fieldnames_rr, metrics_values_rr))
                         metrics_rr.append(metrics_values_rr_dict)
                     else:
-                        metrics_values_fr = list(evaluation_fr(fused, bands_high, bands_low_lr, ratio=exp_info['ratio']))
+                        metrics_values_fr = list(evaluation_fr(fused, bands_high, gt, ratio=exp_info['ratio']))
                         metrics_values_fr.insert(0, gen + algorithm)
                         metrics_values_fr_dict = dict(zip(fieldnames_fr, metrics_values_fr))
                         metrics_fr.append(metrics_values_fr_dict)
