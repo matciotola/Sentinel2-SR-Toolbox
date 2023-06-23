@@ -1,7 +1,7 @@
 import torch
 from torchmin import least_squares
 
-from tools import *
+from .tools import *
 
 def SYNTH_ATPRK(bands_high, bands_low_lr, ratio):
 
@@ -22,7 +22,7 @@ def SYNTH_ATPRK(bands_high, bands_low_lr, ratio):
     for i in range(bands_low_lr.shape[1]):
         fused.append(atprk_ms(bands_low_lr[:, i, None, :, :], bands_high, sill_min, range_min, l_sill, l_range, rate, h, w, psfh))
 
-    return fused
+    return torch.cat(fused, dim=1)
 
 def atprk_ms(bands_low_lr, bands_high, sill_min, range_min, l_sill, l_range, rate, h, w, psfh):
     _, c1, a1, b1 = bands_low_lr.shape
