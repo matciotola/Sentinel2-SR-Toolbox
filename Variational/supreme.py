@@ -1,4 +1,4 @@
-from Variational.tools import *
+from .tools import *
 from Utils.imresize_bicubic import imresize
 
 
