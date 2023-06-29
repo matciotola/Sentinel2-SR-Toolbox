@@ -4,7 +4,6 @@ from Utils.spectral_tools import fspecial_gauss
 
 
 def SSSS(ordered_dict):
-
     bands_high = torch.clone(ordered_dict.bands_high)
     bands_intermediate_lr = torch.clone(ordered_dict.bands_intermediate)
     bands_low_lr = torch.clone(ordered_dict.bands_low_lr)
@@ -169,7 +168,7 @@ def ssss_algorithm(y_im, rv, dx, dy, sdf, lambda_opt, mu):
             delta = torch.squeeze(z.transpose(1, 2)) - d_ij[:, :, ij]
             v_ij[:, :, ij] = delta
             v_ij[idx_pi_pj[ij], :, ij] = ptp_plus_i_inv[ij].double() @ (
-                        mu / lambda_opt / alpha[:, ij, :] * delta[idx_pi_pj[ij], :])
+                    mu / lambda_opt / alpha[:, ij, :] * delta[idx_pi_pj[ij], :])
 
         # z update
         z = (((torch.reshape((v + d), [nb, n]).transpose(-2, -1) @ u) + torch.sum(v_ij + d_ij,
@@ -201,7 +200,6 @@ def ssss_algorithm(y_im, rv, dx, dy, sdf, lambda_opt, mu):
 
     fused = torch.reshape(v, [bs, nb, nr, nc])
 
-
     return fused
 
 
@@ -218,7 +216,7 @@ def ssss_net_learn(img, ps, bw, degree):
     edge = []
     for i in range(bw, nr - bw - ps + 1, ps):
         for j in range(bw, nc - bw - ps + 1, ps):
-            idx = idx = (i + 1) + (j) * nr - 1
+            idx = (i + 1) + (j) * nr - 1
             diff = torch.sum(((patches[:, :, idx:idx + 1] @ torch.ones([bs, nb, nr * nc], dtype=patches.dtype,
                                                                        device=patches.device)) - patches) ** 2, dim=1)
             diff[:, idx] = torch.inf
@@ -374,7 +372,7 @@ def ssss_patch_idx(nr, nc, edge, ps, mu, lambda_opt, alpha):
     pj[:, idx_pj] = torch.eye(ps * ps)
 
     idx_pi_pj = \
-    torch.nonzero((mapi.transpose(2, 3).flatten() == 1) + (mapj.transpose(2, 3).flatten() == 1), as_tuple=True)[0]
+        torch.nonzero((mapi.transpose(2, 3).flatten() == 1) + (mapj.transpose(2, 3).flatten() == 1), as_tuple=True)[0]
 
     card_i = len(idx_pi_pj)
     pi_minus_pj = pi - pj
@@ -382,8 +380,6 @@ def ssss_patch_idx(nr, nc, edge, ps, mu, lambda_opt, alpha):
 
     ptp_plus_i_inv = torch.inverse(
         torch.matmul(pi_minus_pj_active.transpose(0, 1), pi_minus_pj_active) + torch.eye(card_i) * (
-                    mu / lambda_opt / alpha))
+                mu / lambda_opt / alpha))
 
     return idx_pi_pj, ptp_plus_i_inv
-
-
