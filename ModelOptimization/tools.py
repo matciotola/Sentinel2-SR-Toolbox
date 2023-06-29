@@ -122,7 +122,7 @@ def conv2mat(img):
 
 
 def conv2im(img, nl, nc, nb):
-    return torch.unflatten(img, dim=2, sizes=(nl, nc)).transpose(2, 3)
+    return torch.unflatten(img, dim=2, sizes=(nc, nl)).transpose(2, 3)
 
 
 def conv_cm(img, kernel, nl, nc, nb):
