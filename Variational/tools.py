@@ -8,6 +8,7 @@ def kernel_reshape(kernel):
     kernel = torch.moveaxis(kernel, -1, 0)
     return kernel[None, :, :]
 
+
 def normalize_data(img):
     m = torch.mean(img ** 2, dim=(2, 3), keepdim=True)
     normalized = torch.sqrt(img ** 2 / m)
@@ -16,19 +17,17 @@ def normalize_data(img):
 
 
 def denormalize_data(img, m):
-
     return torch.sqrt(img ** 2 * m)
 
 
 def create_conv_kernel(sdf, ratio, nl, nc, nb, dx, dy):
-
     middle_l = nl // 2
     middle_c = nc // 2
 
     ddx = dx // 2
     ddy = dy // 2
 
-    rr = [x//2 for x in ratio]
+    rr = [x // 2 for x in ratio]
 
     FBM = []
     for i in range(nb):
@@ -36,7 +35,8 @@ def create_conv_kernel(sdf, ratio, nl, nc, nb, dx, dy):
         if ratio[i] > 1:
             h = torch.tensor(fspecial_gauss((dy, dx), sdf[i].numpy()))
 
-            B[middle_l - ddy - rr[i] + 1:middle_l + ddy - rr[i] + 1, middle_c - ddx - rr[i] + 1:middle_c + ddx - rr[i] + 1] = h
+            B[middle_l - ddy - rr[i] + 1:middle_l + ddy - rr[i] + 1,
+            middle_c - ddx - rr[i] + 1:middle_c + ddx - rr[i] + 1] = h
             B = torch.fft.fftshift(B)
             B = B / torch.sum(B)
             FBM.append(torch.fft.fft2(B)[None, :, :])
@@ -50,7 +50,6 @@ def create_conv_kernel(sdf, ratio, nl, nc, nb, dx, dy):
 
 
 def create_conv_kernel_subspace(sdf, nl, nc, nb, dx, dy):
-
     middle_l = round((nl + 1) / 2)
     middle_c = round((nc + 1) / 2)
 
@@ -83,7 +82,6 @@ def create_conv_kernel_subspace(sdf, nl, nc, nb, dx, dy):
 
 
 def generate_stack(bands_high, bands_intermediate, bands_low):
-
     img = []
     img.append(bands_low[:, 0, None, :, :])
     img.append(bands_high[:, 0, None, :, :])
@@ -98,9 +96,8 @@ def generate_stack(bands_high, bands_intermediate, bands_low):
     img.append(bands_intermediate[:, 4, None, :, :])
     img.append(bands_intermediate[:, 5, None, :, :])
 
-    #img = torch.cat(img, dim=1)
-
     return img
+
 
 def generate_mean_stack(m_high, m_intermediate, m_low):
     m = []
@@ -129,7 +126,6 @@ def conv2im(img, nl, nc, nb):
 
 
 def conv_cm(img, kernel, nl, nc, nb):
-
     X = conv2mat(
         torch.real(
             torch.fft.ifft2(
@@ -143,7 +139,7 @@ def conv_cm(img, kernel, nl, nc, nb):
 def create_subsampling(img, d, nl, nc, nb):
     bs = img[0].shape[0]
     M = []
-    Y = torch.zeros(bs, nb, nl*nc, dtype=img[0].dtype, device=img[0].device)
+    Y = torch.zeros(bs, nb, nl * nc, dtype=img[0].dtype, device=img[0].device)
     for i in range(nb):
         im = torch.ones([nl // d[i], nc // d[i]], dtype=img[0].dtype, device=img[0].device)
         maux = torch.zeros([d[i], d[i]], dtype=img[0].dtype, device=img[0].device)
@@ -159,7 +155,6 @@ def create_subsampling(img, d, nl, nc, nb):
 
 
 def imgradient_intermediate(img):
-
     gy = img[:, :, 1:, :] - img[:, :, :-1, :]
     gx = img[:, :, :, 1:] - img[:, :, :, :-1]
 
@@ -171,7 +166,6 @@ def imgradient_intermediate(img):
 
 
 def compute_weights(y, d, sigmas, nl, nc, nb):
-
     hr_bands = list(torch.nonzero(torch.tensor(d) == 1)[:, 0].numpy())
     grad = torch.zeros([y.shape[0], hr_bands[-1] + 1, nl, nc], dtype=y.dtype, device=y.device)
     for i in hr_bands:
@@ -189,7 +183,6 @@ def compute_weights(y, d, sigmas, nl, nc, nb):
 
 
 def regularization(x1, x2, tau, mu, w):
-
     q = torch.tensor([1, 1.5, 4, 8, 15, 15, 20], dtype=x1.dtype, device=x1.device)[None, :, None]
     wr = q @ w
 
@@ -200,7 +193,6 @@ def regularization(x1, x2, tau, mu, w):
 
 
 def solver(y, fbm, U, d, tau, nl, nc, nb, reg_type):
-
     # definitions
     bs = y.shape[0]
 
@@ -254,7 +246,7 @@ def solver(y, fbm, U, d, tau, nl, nc, nb, reg_type):
         aux = aux.view(1, aux_c, aux_h, aux_w)
 
         aux2 = f_im * aux
-        iff[:, i:i+1, :, :] = aux2
+        iff[:, i:i + 1, :, :] = aux2
 
     ifz = 1 / (torch.abs(fdh) ** 2 + torch.abs(fdv) ** 2 + 1)
 
@@ -270,19 +262,21 @@ def solver(y, fbm, U, d, tau, nl, nc, nb, reg_type):
     # SupReMe
 
     for i in range(niters):
-        conv_inp = U.transpose(1, 2) @ (v1 + d1) + conv_cm(v2 + d2, fdhc, nl, nc, nb) + conv_cm(v3 + d3, fdvc, nl, nc, nb)
+        conv_inp = U.transpose(1, 2) @ (v1 + d1) + conv_cm(v2 + d2, fdhc, nl, nc, nb) + conv_cm(v3 + d3, fdvc, nl, nc,
+                                                                                                nb)
         z = conv_cm(conv_inp, ifz, nl, nc, nb)
 
-        nu1 = U@z-d1
-        aux = bty+mu*nu1
+        nu1 = U @ z - d1
+        aux = bty + mu * nu1
 
-        v1 = aux/mu - conv_cm(aux, iff, nl, nc, nb) / mu ** 2
+        v1 = aux / mu - conv_cm(aux, iff, nl, nc, nb) / mu ** 2
         nu2 = conv_cm(z, fdh, nl, nc, nb) - d2
         nu3 = conv_cm(z, fdv, nl, nc, nb) - d3
 
         v2, v3 = regularization(nu2, nu3, tau, mu, w)
 
-        error = torch.norm(nu2+d2-v2, p='fro') + torch.norm(nu3+d3-v3, p='fro') + torch.norm(nu1+d1-v1, p='fro')
+        error = torch.norm(nu2 + d2 - v2, p='fro') + torch.norm(nu3 + d3 - v3, p='fro') + torch.norm(nu1 + d1 - v1,
+                                                                                                     p='fro')
 
         if error < 1e-3:
             break
@@ -295,4 +289,3 @@ def solver(y, fbm, U, d, tau, nl, nc, nb, reg_type):
     x_hat_im = conv2im(x_hat, nl, nc, nb)
 
     return x_hat_im
-
