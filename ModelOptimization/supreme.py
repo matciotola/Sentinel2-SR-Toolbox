@@ -1,4 +1,5 @@
-from .tools import *
+from ModelOptimization.tools import *
+from ModelOptimization.tools import conv_cm, compute_weights, regularization, conv2im
 from Utils.imresize_bicubic import imresize
 
 
@@ -84,3 +85,156 @@ def SupReMe(ordered_dict):
     fused_60 = x_hat_im[:, bands_60_index, :, :]
 
     return fused_20, fused_60
+
+
+if __name__ == '__main__':
+    from recordclass import recordclass
+    import numpy as np
+    from scipy import io
+    import matplotlib
+    matplotlib.use('TkAgg')
+    import matplotlib.pyplot as plt
+
+    bands_10_index = [1, 2, 3, 7]
+    bands_20_index = [4, 5, 6, 8, 10, 11]
+    bands_60_index = [0, 9]
+
+    y_im = io.loadmat('/home/matteo/Desktop/MATLAB/SSSS/Yim_cell.mat')['Yim_cell']
+
+    bands_high = []
+    for i in bands_10_index:
+        bands_high.append(y_im[:, i][0][None, None, :, :])
+
+    bands_high = np.concatenate(bands_high, axis=1).astype(np.float64)
+    bands_high = torch.from_numpy(bands_high)
+
+    bands_intermediate_lr = []
+    for i in bands_20_index:
+        bands_intermediate_lr.append(y_im[:, i][0][None, None, :, :])
+
+    bands_intermediate_lr = np.concatenate(bands_intermediate_lr, axis=1).astype(np.float64)
+    bands_intermediate_lr = torch.from_numpy(bands_intermediate_lr)
+
+    bands_low_lr = []
+    for i in bands_60_index:
+        bands_low_lr.append(y_im[:, i][0][None, None, :, :])
+
+    bands_low_lr = np.concatenate(bands_low_lr, axis=1).astype(np.float64)
+    bands_low_lr = torch.from_numpy(bands_low_lr)
+
+    exp_info = {}
+    exp_info['bands_low_lr'] = bands_low_lr
+    exp_info['bands_intermediate'] = bands_intermediate_lr
+    exp_info['bands_high'] = bands_high
+
+    exp_input = recordclass('exp_info', exp_info.keys())(*exp_info.values())
+
+    fused_20, fused_60 = SupReMe(exp_input)
+
+    import matplotlib
+
+    matplotlib.use('TkAgg')
+    from matplotlib import pyplot as plt
+
+    plt.figure()
+    plt.imshow(fused_20.numpy()[0, 0, :, :])
+    plt.show()
+
+
+def solver(y, fbm, U, d, tau, nl, nc, nb, reg_type):
+    # definitions
+    bs = y.shape[0]
+
+    niters = 100
+    mu = 0.2
+
+    p = U.shape[-1]
+    n = nl * nc
+    fbmc = torch.conj(fbm)
+    bty = conv_cm(y, fbmc, nl, nc, nb)
+
+    # operators for differences
+
+    dh = torch.zeros(nl, nc, dtype=y.dtype, device=y.device)
+    dh[0, 0] = 1
+    dh[0, -1] = -1
+
+    dv = torch.zeros(nl, nc, dtype=y.dtype, device=y.device)
+    dv[0, 0] = 1
+    dv[-1, 0] = -1
+
+    fdh = torch.fft.fft2(dh)[None, None, :, :].repeat(bs, p, 1, 1)
+    fdv = torch.fft.fft2(dv)[None, None, :, :].repeat(bs, p, 1, 1)
+    fdhc = torch.conj(fdh)
+    fdvc = torch.conj(fdv)
+
+    # compute weights
+
+    sigmas = 1
+    w = compute_weights(y, d, sigmas, nl, nc, nb)
+
+    iff = torch.zeros(fbm.shape, dtype=y.dtype, device=y.device)
+
+    # build the inverse filter in frequency domain with subsampling
+
+    for i in range(nb):
+        f_im = torch.abs(fbm[:, i, None, :, :] ** 2)
+        kc, kh, kw = 1, nl // d[i], nc // d[i]  # kernel size
+        dc, dh, dw = 1, nl // d[i], nc // d[i]  # stride
+        patches = f_im.unfold(1, kc, dc).unfold(2, kh, dh).unfold(3, kw, dw)
+        unfold_shape = list(patches.shape)
+        f_patches = patches.contiguous().view(-1, kc, kh, kw).flatten(start_dim=2)
+        p2 = f_patches.shape[0]
+        f_patches = 1 / (torch.sum(f_patches, dim=0, keepdim=True) / mu + d[i] ** 2)
+
+        aux = f_patches.repeat(p2, 1, 1).view(unfold_shape)
+        aux_c = unfold_shape[1] * unfold_shape[4]
+        aux_h = unfold_shape[2] * unfold_shape[5]
+        aux_w = unfold_shape[3] * unfold_shape[6]
+        aux = aux.permute(0, 1, 4, 2, 5, 3, 6).contiguous()
+        aux = aux.view(1, aux_c, aux_h, aux_w)
+
+        aux2 = f_im * aux
+        iff[:, i:i + 1, :, :] = aux2
+
+    ifz = 1 / (torch.abs(fdh) ** 2 + torch.abs(fdv) ** 2 + 1)
+
+    # initialization
+    z = torch.zeros([bs, p, n], dtype=y.dtype, device=y.device)
+    v1 = torch.zeros([bs, nb, n], dtype=y.dtype, device=y.device)
+    v2 = torch.clone(z)
+    v3 = torch.clone(z)
+    d1 = torch.clone(v1)
+    d2 = torch.clone(z)
+    d3 = torch.clone(z)
+
+    # SupReMe
+
+    for i in range(niters):
+        conv_inp = U.transpose(1, 2) @ (v1 + d1) + conv_cm(v2 + d2, fdhc, nl, nc, nb) + conv_cm(v3 + d3, fdvc, nl, nc,
+                                                                                                nb)
+        z = conv_cm(conv_inp, ifz, nl, nc, nb)
+
+        nu1 = U @ z - d1
+        aux = bty + mu * nu1
+
+        v1 = aux / mu - conv_cm(aux, iff, nl, nc, nb) / mu ** 2
+        nu2 = conv_cm(z, fdh, nl, nc, nb) - d2
+        nu3 = conv_cm(z, fdv, nl, nc, nb) - d3
+
+        v2, v3 = regularization(nu2, nu3, tau, mu, w)
+
+        error = torch.norm(nu2 + d2 - v2, p='fro') + torch.norm(nu3 + d3 - v3, p='fro') + torch.norm(nu1 + d1 - v1,
+                                                                                                     p='fro')
+
+        if error < 1e-3:
+            break
+
+        d1 = -nu1 + v1
+        d2 = -nu2 + v2
+        d3 = -nu3 + v3
+
+    x_hat = U @ z
+    x_hat_im = conv2im(x_hat, nl, nc, nb)
+
+    return x_hat_im
