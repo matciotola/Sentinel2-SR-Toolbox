@@ -106,8 +106,8 @@ def ssss_algorithm(y_im, rv, dx, dy, sdf, lambda_opt, mu):
 
     # network learning
 
-    edge, alpha = ssss_net_learn(torch.mean(y_im[:, band_for_net_learn, :, :], dim=1, keepdim=True), patch_size,
-                                 boundary_width, net_degree)
+    edge, alpha = net_learn(torch.mean(y_im[:, band_for_net_learn, :, :], dim=1, keepdim=True), patch_size,
+                            boundary_width, net_degree)
 
     noe = edge.shape[1]
 
@@ -115,7 +115,7 @@ def ssss_algorithm(y_im, rv, dx, dy, sdf, lambda_opt, mu):
 
     x_im = []
     for i in range(nb):
-        x_im.append(ssss_pan4(y_im[:, i:i + 1, :, :], y_im[:, [1, 2, 3, 7], :, :], rv[i], fbm[:, i:i + 1, :, :]))
+        x_im.append(pan4(y_im[:, i:i + 1, :, :], y_im[:, [1, 2, 3, 7], :, :], rv[i], fbm[:, i:i + 1, :, :]))
 
     x_im = torch.cat(x_im, dim=1)
     uz = torch.flatten(x_im.transpose(2, 3), start_dim=2, end_dim=3)
@@ -139,12 +139,12 @@ def ssss_algorithm(y_im, rv, dx, dy, sdf, lambda_opt, mu):
     for i in range(nb):
         s = fbm[:, i:i + 1, :, :]
         r = rv[i]
-        iff.append(1 / (r ** 2 + (ssss_dh(torch.abs(s ** 2), r)) / mu))
+        iff.append(1 / (r ** 2 + (dh(torch.abs(s ** 2), r)) / mu))
 
     idx_pi_pj = []
     ptp_plus_i_inv = []
     for ij in range(noe):
-        a, b = ssss_patch_idx(nr, nc, edge[:, ij, :], patch_size, mu, lambda_opt, alpha[:, ij, :].item())
+        a, b = patch_idx(nr, nc, edge[:, ij, :], patch_size, mu, lambda_opt, alpha[:, ij, :].item())
         idx_pi_pj.append(a)
         ptp_plus_i_inv.append(b)
 
@@ -160,8 +160,8 @@ def ssss_algorithm(y_im, rv, dx, dy, sdf, lambda_opt, mu):
             inp = aux[:, b, :].flatten()
             r = rv[b]
             s = fbm[:, b:b + 1, :, :]
-            vv = (torch.fft.ifft2((ssss_dh((torch.fft.fft2(torch.reshape(inp, [bs, 1, nc, nr]).transpose(-2, -1)) * s),
-                                           r) * iff[b]).repeat(1, 1, r, r) * torch.conj(s)))
+            vv = (torch.fft.ifft2((dh((torch.fft.fft2(torch.reshape(inp, [bs, 1, nc, nr]).transpose(-2, -1)) * s),
+                                      r) * iff[b]).repeat(1, 1, r, r) * torch.conj(s)))
             v[b * n:(b + 1) * n] = inp / mu - torch.real(vv.transpose(-2, -1).flatten()) / mu / mu
 
         for ij in range(noe):
@@ -203,7 +203,7 @@ def ssss_algorithm(y_im, rv, dx, dy, sdf, lambda_opt, mu):
     return fused
 
 
-def ssss_net_learn(img, ps, bw, degree):
+def net_learn(img, ps, bw, degree):
     bs, nb, nr, nc = img.shape
     temp = img.repeat(1, 1, 2, 2)
     patches = torch.nn.functional.unfold(temp[:, :, :nr + ps - 1, :nc + ps - 1].transpose(2, 3), kernel_size=(ps, ps))
@@ -235,7 +235,7 @@ def ssss_net_learn(img, ps, bw, degree):
     return edge, alpha
 
 
-def ssss_dh(x, ratio):
+def dh(x, ratio):
     bs, nb, nr, nc = x.shape
     x1 = torch.nn.functional.unfold(x.transpose(2, 3), kernel_size=(nc // ratio, nr // ratio),
                                     stride=(nc // ratio, nr // ratio))
@@ -320,7 +320,7 @@ def lsqnonneg(C, d):
     return x
 
 
-def ssss_pan4(y, x4, r, fbm):
+def pan4(y, x4, r, fbm):
     if r == 0:
         syn = y
     else:
@@ -340,7 +340,7 @@ def ssss_pan4(y, x4, r, fbm):
         return syn
 
 
-def ssss_patch_idx(nr, nc, edge, ps, mu, lambda_opt, alpha):
+def patch_idx(nr, nc, edge, ps, mu, lambda_opt, alpha):
     i = torch.squeeze(edge[:, 0])
     j = torch.squeeze(edge[:, 1])
 
@@ -358,14 +358,14 @@ def ssss_patch_idx(nr, nc, edge, ps, mu, lambda_opt, alpha):
     tempi = torch.zeros([2 * nr, 2 * nc])
     tempi[yi:yi + ps, xi:xi + ps] = torch.ones([ps, ps])
 
-    mapi = ssss_dh(tempi[None, None, :, :], 2)
+    mapi = dh(tempi[None, None, :, :], 2)
     idx_pi = torch.nonzero(mapi.transpose(2, 3).flatten() == 1, as_tuple=True)[0]
     pi = torch.zeros([ps * ps, n])
     pi[:, idx_pi] = torch.eye(ps * ps)
 
     tempj = torch.zeros([2 * nr, 2 * nc])
     tempj[yj:yj + ps, xj:xj + ps] = torch.ones([ps, ps])
-    mapj = ssss_dh(tempj[None, None, :, :], 2)
+    mapj = dh(tempj[None, None, :, :], 2)
 
     idx_pj = torch.nonzero(mapj.transpose(2, 3).flatten() == 1, as_tuple=True)[0]
     pj = torch.zeros([ps * ps, n])
