@@ -49,8 +49,6 @@ def SupReMe(ordered_dict):
     fbm = create_conv_kernel(sdf, ratio, nl, nc, len(mtf), dx, dy)
     fbm2 = create_conv_kernel_subspace(sdf, nl, nc, len(mtf), dx, dy)
 
-    fbm = kernel_reshape(fbm)
-    fbm2 = kernel_reshape(fbm2)
 
     # Generate LR MS image for subspace
     bands_high = bands_high_normalized
@@ -85,60 +83,6 @@ def SupReMe(ordered_dict):
     fused_60 = x_hat_im[:, bands_60_index, :, :]
 
     return fused_20, fused_60
-
-
-if __name__ == '__main__':
-    from recordclass import recordclass
-    import numpy as np
-    from scipy import io
-    import matplotlib
-    matplotlib.use('TkAgg')
-    import matplotlib.pyplot as plt
-
-    bands_10_index = [1, 2, 3, 7]
-    bands_20_index = [4, 5, 6, 8, 10, 11]
-    bands_60_index = [0, 9]
-
-    y_im = io.loadmat('/home/matteo/Desktop/MATLAB/SSSS/Yim_cell.mat')['Yim_cell']
-
-    bands_high = []
-    for i in bands_10_index:
-        bands_high.append(y_im[:, i][0][None, None, :, :])
-
-    bands_high = np.concatenate(bands_high, axis=1).astype(np.float64)
-    bands_high = torch.from_numpy(bands_high)
-
-    bands_intermediate_lr = []
-    for i in bands_20_index:
-        bands_intermediate_lr.append(y_im[:, i][0][None, None, :, :])
-
-    bands_intermediate_lr = np.concatenate(bands_intermediate_lr, axis=1).astype(np.float64)
-    bands_intermediate_lr = torch.from_numpy(bands_intermediate_lr)
-
-    bands_low_lr = []
-    for i in bands_60_index:
-        bands_low_lr.append(y_im[:, i][0][None, None, :, :])
-
-    bands_low_lr = np.concatenate(bands_low_lr, axis=1).astype(np.float64)
-    bands_low_lr = torch.from_numpy(bands_low_lr)
-
-    exp_info = {}
-    exp_info['bands_low_lr'] = bands_low_lr
-    exp_info['bands_intermediate'] = bands_intermediate_lr
-    exp_info['bands_high'] = bands_high
-
-    exp_input = recordclass('exp_info', exp_info.keys())(*exp_info.values())
-
-    fused_20, fused_60 = SupReMe(exp_input)
-
-    import matplotlib
-
-    matplotlib.use('TkAgg')
-    from matplotlib import pyplot as plt
-
-    plt.figure()
-    plt.imshow(fused_20.numpy()[0, 0, :, :])
-    plt.show()
 
 
 def solver(y, fbm, U, d, tau, nl, nc, nb, reg_type):
@@ -211,8 +155,7 @@ def solver(y, fbm, U, d, tau, nl, nc, nb, reg_type):
     # SupReMe
 
     for i in range(niters):
-        conv_inp = U.transpose(1, 2) @ (v1 + d1) + conv_cm(v2 + d2, fdhc, nl, nc, nb) + conv_cm(v3 + d3, fdvc, nl, nc,
-                                                                                                nb)
+        conv_inp = U.transpose(1, 2) @ (v1 + d1) + conv_cm(v2 + d2, fdhc, nl, nc, nb) + conv_cm(v3 + d3, fdvc, nl, nc, nb)
         z = conv_cm(conv_inp, ifz, nl, nc, nb)
 
         nu1 = U @ z - d1
