@@ -4,11 +4,6 @@ from math import sqrt
 import torchvision.transforms.functional as TF
 
 
-def kernel_reshape(kernel):
-    kernel = torch.moveaxis(kernel, -1, 0)
-    return kernel[None, :, :]
-
-
 def normalize_data(img):
     m = torch.mean(img ** 2, dim=(2, 3), keepdim=True)
     normalized = torch.sqrt(img ** 2 / m)
@@ -35,18 +30,16 @@ def create_conv_kernel(sdf, ratio, nl, nc, nb, dx, dy):
         if ratio[i] > 1:
             h = torch.tensor(fspecial_gauss((dy, dx), sdf[i].numpy()))
 
-            B[middle_l - ddy - rr[i] + 1:middle_l + ddy - rr[i] + 1,
-            middle_c - ddx - rr[i] + 1:middle_c + ddx - rr[i] + 1] = h
+            B[middle_l - ddy - rr[i] + 1:middle_l + ddy - rr[i] + 1, middle_c - ddx - rr[i] + 1:middle_c + ddx - rr[i] + 1] = h
             B = torch.fft.fftshift(B)
             B = B / torch.sum(B)
             FBM.append(torch.fft.fft2(B)[None, :, :])
         else:
             B[0, 0] = 1
-            FBM.append(B[None, :, :])
+            FBM.append(torch.fft.fft2(B)[None, :, :])
 
     FBM = torch.vstack(FBM)
-    FBM = torch.moveaxis(FBM, 0, 2)
-    return FBM
+    return FBM[None, :, :, :]
 
 
 def create_conv_kernel_subspace(sdf, nl, nc, nb, dx, dy):
@@ -67,18 +60,17 @@ def create_conv_kernel_subspace(sdf, nl, nc, nb, dx, dy):
         B = torch.zeros(nl, nc)
         if sdf[i] < s2:
             h = torch.tensor(fspecial_gauss((dx, dy), sqrt(s2 ** 2 - sdf[i] ** 2)))
-            B[middle_l - ddy - 1:middle_l + ddy, middle_c - ddx - 1:middle_c + ddx] = h
+            B[middle_l - ddy :middle_l + ddy + 1, middle_c - ddx:middle_c + ddx + 1] = h
             B = torch.fft.fftshift(B)
             B = B / torch.sum(B)
             FBM.append(torch.fft.fft2(B)[None, :, :])
 
         else:
             B[0, 0] = 1
-            FBM.append(B[None, :, :])
+            FBM.append(torch.fft.fft2(B)[None, :, :])
     FBM = torch.vstack(FBM)
-    FBM = torch.moveaxis(FBM, 0, 2)
 
-    return FBM
+    return FBM[None, :, :, :]
 
 
 def generate_stack(bands_high, bands_intermediate, bands_low):
@@ -122,7 +114,8 @@ def conv2mat(img):
 
 
 def conv2im(img, nl, nc, nb):
-    return torch.unflatten(img, dim=2, sizes=(nc, nl)).transpose(2, 3)
+
+    return torch.reshape(img, (img.shape[0], img.shape[1], nc, nl)).transpose(2, 3)
 
 
 def conv_cm(img, kernel, nl, nc, nb):
@@ -147,7 +140,7 @@ def create_subsampling(img, d, nl, nc, nb):
 
         mm = torch.kron(im, maux)
         M.append(mm[None, :, :])
-        mask = torch.nonzero(mm.flatten())[:, 0]
+        mask = torch.nonzero(mm.transpose(0,1).flatten())[:, 0]
         temp = conv2mat(img[i])
         Y[:, i, mask] = temp
     torch.cat(M, dim=0)
@@ -190,102 +183,3 @@ def regularization(x1, x2, tau, mu, w):
     y2 = (mu * x2) / (mu + tau * wr)
 
     return y1, y2
-
-
-def solver(y, fbm, U, d, tau, nl, nc, nb, reg_type):
-    # definitions
-    bs = y.shape[0]
-
-    niters = 100
-    mu = 0.2
-
-    p = U.shape[-1]
-    n = nl * nc
-    fbmc = torch.conj(fbm)
-    bty = conv_cm(y, fbmc, nl, nc, nb)
-
-    # operators for differences
-
-    dh = torch.zeros(nl, nc, dtype=y.dtype, device=y.device)
-    dh[0, 0] = 1
-    dh[0, -1] = -1
-
-    dv = torch.zeros(nl, nc, dtype=y.dtype, device=y.device)
-    dv[0, 0] = 1
-    dv[-1, 0] = -1
-
-    fdh = torch.fft.fft2(dh)[None, None, :, :].repeat(bs, p, 1, 1)
-    fdv = torch.fft.fft2(dv)[None, None, :, :].repeat(bs, p, 1, 1)
-    fdhc = torch.conj(fdh)
-    fdvc = torch.conj(fdv)
-
-    # compute weights
-
-    sigmas = 1
-    w = compute_weights(y, d, sigmas, nl, nc, nb)
-
-    iff = torch.zeros(fbm.shape, dtype=y.dtype, device=y.device)
-
-    # build the inverse filter in frequency domain with subsampling
-
-    for i in range(nb):
-        f_im = torch.abs(fbm[:, i, None, :, :] ** 2)
-        kc, kh, kw = 1, nl // d[i], nc // d[i]  # kernel size
-        dc, dh, dw = 1, nl // d[i], nc // d[i]  # stride
-        patches = f_im.unfold(1, kc, dc).unfold(2, kh, dh).unfold(3, kw, dw)
-        unfold_shape = list(patches.shape)
-        f_patches = patches.contiguous().view(-1, kc, kh, kw).flatten(start_dim=2)
-        p2 = f_patches.shape[0]
-        f_patches = 1 / (torch.sum(f_patches, dim=0, keepdim=True) / mu + d[i] ** 2)
-
-        aux = f_patches.repeat(p2, 1, 1).view(unfold_shape)
-        aux_c = unfold_shape[1] * unfold_shape[4]
-        aux_h = unfold_shape[2] * unfold_shape[5]
-        aux_w = unfold_shape[3] * unfold_shape[6]
-        aux = aux.permute(0, 1, 4, 2, 5, 3, 6).contiguous()
-        aux = aux.view(1, aux_c, aux_h, aux_w)
-
-        aux2 = f_im * aux
-        iff[:, i:i + 1, :, :] = aux2
-
-    ifz = 1 / (torch.abs(fdh) ** 2 + torch.abs(fdv) ** 2 + 1)
-
-    # initialization
-    z = torch.zeros([bs, p, n], dtype=y.dtype, device=y.device)
-    v1 = torch.zeros([bs, nb, n], dtype=y.dtype, device=y.device)
-    v2 = torch.clone(z)
-    v3 = torch.clone(z)
-    d1 = torch.clone(v1)
-    d2 = torch.clone(z)
-    d3 = torch.clone(z)
-
-    # SupReMe
-
-    for i in range(niters):
-        conv_inp = U.transpose(1, 2) @ (v1 + d1) + conv_cm(v2 + d2, fdhc, nl, nc, nb) + conv_cm(v3 + d3, fdvc, nl, nc,
-                                                                                                nb)
-        z = conv_cm(conv_inp, ifz, nl, nc, nb)
-
-        nu1 = U @ z - d1
-        aux = bty + mu * nu1
-
-        v1 = aux / mu - conv_cm(aux, iff, nl, nc, nb) / mu ** 2
-        nu2 = conv_cm(z, fdh, nl, nc, nb) - d2
-        nu3 = conv_cm(z, fdv, nl, nc, nb) - d3
-
-        v2, v3 = regularization(nu2, nu3, tau, mu, w)
-
-        error = torch.norm(nu2 + d2 - v2, p='fro') + torch.norm(nu3 + d3 - v3, p='fro') + torch.norm(nu1 + d1 - v1,
-                                                                                                     p='fro')
-
-        if error < 1e-3:
-            break
-
-        d1 = -nu1 + v1
-        d2 = -nu2 + v2
-        d3 = -nu3 + v3
-
-    x_hat = U @ z
-    x_hat_im = conv2im(x_hat, nl, nc, nb)
-
-    return x_hat_im
