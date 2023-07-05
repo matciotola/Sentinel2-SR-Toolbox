@@ -6,7 +6,7 @@ pan_generation: ['synthesize', 'selection']
 
 pansharpening_based_algorithms: ['BDSD', 'GS', 'GSA', 'BT-H', 'PRACS', 'AWLP', 'MTF-GLP', 'MTF-GLP-FS', 'MTF-GLP-HPM', 'MTF-GLP-HPM-H', 'MTF-GLP-HPM-R']
 
-ad_hoc_algorithms: ['MuSa', 'S2Sharp', 'SupReMe', 'SSSS', 'DSen2', 'FUSE', 'R-FUSE', 'SEL-ATPRK','SYNTH-ATPRK']
+ad_hoc_algorithms: ['MuSA', 'S2Sharp', 'SupReMe', 'SSSS', 'DSen2', 'FUSE', 'R-FUSE', 'SEL-ATPRK','SYNTH-ATPRK']
 
 tiff_root: '/nas/homes/matteo.ciotola/Dataset_Ugliano'
 
