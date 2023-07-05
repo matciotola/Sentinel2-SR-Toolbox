@@ -2,6 +2,9 @@ import os
 import torch
 import numpy as np
 
+from osgeo import gdal
+gdal.UseExceptions()
+
 import copy
 import gc
 from recordclass import recordclass
@@ -18,6 +21,12 @@ from DSen2.DSen2 import DSen2
 from FUSE.FUSE import FUSE
 from RFUSE.R_FUSE import R_FUSE
 
+from ATPRK.ATPRK import SEL_ATPRK, SYNTH_ATPRK
+from ModelOptimization.musa import MuSA
+from ModelOptimization.s2sharp import S2Sharp
+from ModelOptimization.ssss import SSSS
+from ModelOptimization.supreme import SupReMe
+
 from Metrics.evaluation import evaluation_rr, evaluation_fr
 
 from Utils.dl_tools import generate_paths
@@ -31,7 +40,8 @@ pansharpening_algorithm_dict = {'BDSD': BDSD, 'GS': GS, 'GSA': GSA, 'BT-H': BT_H
                                 'MTF-GLP-HPM': MTF_GLP_HPM, 'MTF-GLP-HPM-H': MTF_GLP_HPM_H, # Multi-Resolution analysis
                                 'MTF-GLP-HPM-R': MTF_GLP_HPM_R # Multi-Resolution analysis
                                 }
-deep_learning_algorithm_dict = {'DSen2': DSen2, 'FUSE': FUSE, 'R-FUSE': R_FUSE}
+ad_hoc_algorithm_dict = {'SEL-ATPRK': SEL_ATPRK, 'SYNTH-ATPRK': SYNTH_ATPRK, 'MuSA': MuSA, 'S2Sharp': S2Sharp,
+                         'SSSS': SSSS, 'SupReMe': SupReMe, 'DSen2': DSen2, 'FUSE': FUSE, 'R-FUSE': R_FUSE}
 
 pan_generation_dict = {'selection': selection, 'synthesize': synthesize}
 
@@ -164,9 +174,9 @@ if __name__ == '__main__':
             exp_input.bands_high = bands_high
             exp_input.bands_intermediate = bands_intermediate
             exp_input.bands_low_lr = bands_low_lr
-            for dl_algorithm in config.deep_learning_algorithms:
+            for dl_algorithm in config.ad_hoc_algorithms:
                 print('Running algorithm: ' + dl_algorithm)
-                method = deep_learning_algorithm_dict[dl_algorithm]
+                method = ad_hoc_algorithm_dict[dl_algorithm]
                 fused = method(exp_input)
                 if experiment_type == 'RR':
                     metrics_values_rr = list(evaluation_rr(fused, gt, ratio=exp_info['ratio']))
@@ -187,12 +197,15 @@ if __name__ == '__main__':
                 gc.collect()
 
             if experiment_type == 'RR':
-                with open('Metrics_RR_' + config.tiff_images[0] + '_' + scale + '.csv', 'w', encoding='UTF8', newline='') as f:
+                if not os.path.exists(os.path.join(config.save_root, config.tiff_images[0], experiment_type, scale)):
+                    os.makedirs(os.path.join(config.save_root, config.tiff_images[0], experiment_type, scale))
+
+                with open(os.path.join(config.save_root, config.tiff_images[0], experiment_type, scale, 'Evaluation_RR.csv'), 'w', encoding='UTF8', newline='') as f:
                     writer = csv.DictWriter(f, fieldnames=fieldnames_rr)
                     writer.writeheader()
                     writer.writerows(metrics_rr)
             else:
-                with open('Metrics_FR_' + config.tiff_images[0] + '_' + scale + '.csv', 'w', encoding='UTF8', newline='') as f:
+                with open(os.path.join(config.save_root, config.tiff_images[0], experiment_type, scale, 'Evaluation_FR.csv'), 'w', encoding='UTF8', newline='') as f:
                     writer = csv.DictWriter(f, fieldnames=fieldnames_fr)
                     writer.writeheader()
                     writer.writerows(metrics_fr)
