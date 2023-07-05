@@ -6,7 +6,11 @@ from Utils.imresize_bicubic import imresize
 import pywt
 from Utils.bm3d import bm3d_rgb_mod
 
-def MuSA(bands_high, bands_intermediate_lr, bands_low_lr):
+def MuSA(ordered_dict):
+    bands_high = torch.clone(ordered_dict.bands_high)
+    bands_intermediate_lr = torch.clone(ordered_dict.bands_intermediate)
+    bands_low_lr = torch.clone(ordered_dict.bands_low_lr)
+
     if bands_low_lr.shape[1] == 3:
         bands_low_lr = bands_low_lr[:, :-1, :, :]
 
@@ -179,6 +183,7 @@ def synthetize_pan(coarse, pan):
 if __name__ == '__main__':
     from scipy import io
     import matplotlib
+    from recordclass import recordclass
     import numpy as np
 
     matplotlib.use('TkAgg')
@@ -209,8 +214,11 @@ if __name__ == '__main__':
 
     bands_low_lr = np.concatenate(bands_low_lr, axis=1).astype(np.float64)
     bands_low_lr = torch.from_numpy(bands_low_lr)
+    exp_info = {'bands_low_lr': bands_low_lr, 'bands_intermediate': bands_intermediate_lr, 'bands_high': bands_high}
 
-    fused20, fused60 = MuSA(bands_high, bands_intermediate_lr, bands_low_lr)
+    exp_input = recordclass('exp_info', exp_info.keys())(*exp_info.values())
+
+    fused20, fused60 = MuSA(exp_input)
 
     fused_20 = fused20.numpy()
     fused_60 = fused60.numpy()
