@@ -1,5 +1,5 @@
 import torch
-from .tools import generate_stack
+from ModelOptimization.tools import generate_stack
 from Utils.spectral_tools import fspecial_gauss
 
 
@@ -64,7 +64,12 @@ def SSSS(ordered_dict):
     fused_20 = fused[:, bands_20_index, :, :]
     fused_60 = fused[:, bands_60_index, :, :]
 
-    return fused_20, fused_60
+    if ordered_dict.ratio == 2:
+        fused = fused_20
+    else:
+        fused = fused_60
+
+    return fused
 
 
 def ssss_algorithm(y_im, rv, dx, dy, sdf, lambda_opt, mu):

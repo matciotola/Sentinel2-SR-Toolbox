@@ -82,7 +82,12 @@ def SupReMe(ordered_dict):
     fused_20 = x_hat_im[:, bands_20_index, :, :]
     fused_60 = x_hat_im[:, bands_60_index, :, :]
 
-    return fused_20, fused_60
+    if ordered_dict.ratio == 2:
+        fused = fused_20
+    else:
+        fused = fused_60
+
+    return fused
 
 
 def solver(y, fbm, U, d, tau, nl, nc, nb, reg_type):

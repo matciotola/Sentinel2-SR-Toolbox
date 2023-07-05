@@ -87,7 +87,12 @@ def S2Sharp(ordered_dict):
     fused_20 = fused[:, bands_20_index, :, :]
     fused_60 = fused[:, bands_60_index, :, :]
 
-    return fused_20, fused_60
+    if ordered_dict.ratio == 2:
+        fused = fused_20
+    else:
+        fused = fused_60
+
+    return fused
 
 
 def inizialization(img, sdf, nb, nl, nc, dx, dy, d, limsub, r):

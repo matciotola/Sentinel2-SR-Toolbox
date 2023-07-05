@@ -1,10 +1,12 @@
-import torch
 from torchmin import least_squares
-
+from tqdm import tqdm
 from .tools import *
 
-def SYNTH_ATPRK(bands_high, bands_low_lr, ratio):
+def SYNTH_ATPRK(ordered_dict):
 
+    bands_high = torch.clone(ordered_dict.bands_high)
+    bands_low_lr = torch.clone(ordered_dict.bands_low_lr)
+    ratio = ordered_dict.ratio
     # hyperparameters
     s = ratio
     w = 1
@@ -19,7 +21,7 @@ def SYNTH_ATPRK(bands_high, bands_low_lr, ratio):
     psfh = psf_template(s, w, sigma)
 
     fused = []
-    for i in range(bands_low_lr.shape[1]):
+    for i in tqdm(range(bands_low_lr.shape[1])):
         fused.append(atprk_ms(bands_low_lr[:, i, None, :, :], bands_high, sill_min, range_min, l_sill, l_range, rate, h, w, psfh))
 
     return torch.cat(fused, dim=1)
@@ -91,7 +93,11 @@ def atprk_ms(bands_low_lr, bands_high, sill_min, range_min, l_sill, l_range, rat
 
 
 
-def SEL_ATPRK(bands_high, bands_low_lr, ratio):
+def SEL_ATPRK(ordered_dict):
+
+    bands_high = torch.clone(ordered_dict.bands_high)
+    bands_low_lr = torch.clone(ordered_dict.bands_low_lr)
+    ratio = ordered_dict.ratio
 
     # hyperparameters
 
@@ -123,7 +129,7 @@ def SEL_ATPRK(bands_high, bands_low_lr, ratio):
 
     # ATPRK
     fused = []
-    for i in range(bands_low_lr.shape[1]):
+    for i in tqdm(range(bands_low_lr.shape[1])):
         fused.append(atprk_pan(bands_low_lr[:, i, None, :, :], bands_high[:, jj[i], None, :, :], sill_min, range_min, l_sill, l_range, rate, h, w, psfh))
     return torch.cat(fused, dim=1)
 
