@@ -12,7 +12,7 @@ from Utils.spectral_tools import fspecial_gauss
 from Utils.imresize_bicubic import imresize
 
 
-def s2sharp(ordered_dict):
+def S2Sharp(ordered_dict):
     bands_high = torch.clone(ordered_dict.bands_high)
     bands_intermediate_lr = torch.clone(ordered_dict.bands_intermediate)
     bands_low_lr = torch.clone(ordered_dict.bands_low_lr)
@@ -313,7 +313,7 @@ if __name__ == '__main__':
     exp_info = {'bands_low_lr': bands_low_lr, 'bands_intermediate': bands_intermediate_lr, 'bands_high': bands_high}
 
     exp_input = recordclass('exp_info', exp_info.keys())(*exp_info.values())
-    fused20, fused60 = s2sharp(exp_input)
+    fused20, fused60 = S2Sharp(exp_input)
 
     fused_20 = fused20.numpy()
     plt.figure()
