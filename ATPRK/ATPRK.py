@@ -194,30 +194,6 @@ def atprk_pan(bands_low_lr, bands_high, sill_min, range_min, l_sill, l_range, ra
     return fused
 
 
-if __name__ == '__main__':
-    from scipy import io
-    import numpy as np
-    import torch
-    from matplotlib import pyplot as plt
-
-    from Utils.interpolator_tools import interp23tap_torch
-
-    ratio = 2
-
-    bands_high = io.loadmat('/media/matteo/T7/Dataset_Ugliano/MAT/10/New_York.mat')['S2_10m']
-    bands_low_lr = io.loadmat('/media/matteo/T7/Dataset_Ugliano/MAT/20/New_York.mat')['S2_20m']
-
-    bands_high = np.moveaxis(bands_high, 2, 0)
-    bands_low_lr = np.moveaxis(bands_low_lr, 2, 0)
-
-    bands_high = torch.from_numpy(bands_high[None, :, :, :].astype(np.float32))
-    bands_low_lr = torch.from_numpy(bands_low_lr[None, :, :, :].astype(np.float32))
-
-
-
-    fused_1 = SYNTH_ATPRK(bands_high, bands_low_lr, ratio)
-    fused_2 = SEL_ATPRK(bands_high, bands_low_lr, ratio)
-
 
 
 

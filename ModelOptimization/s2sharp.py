@@ -1,4 +1,5 @@
-from ModelOptimization.tools import generate_stack, generate_mean_stack, normalize_data, denormalize_data, create_subsampling, compute_weights, conv_cm, conv2im
+from ModelOptimization.tools import generate_stack, generate_mean_stack, normalize_data, denormalize_data, \
+                                    create_subsampling, compute_weights, conv_cm, conv2im
 import torch
 from math import sqrt
 
@@ -12,7 +13,6 @@ from Utils.imresize_bicubic import imresize
 
 
 def s2sharp(ordered_dict):
-
     bands_high = torch.clone(ordered_dict.bands_high)
     bands_intermediate_lr = torch.clone(ordered_dict.bands_intermediate)
     bands_low_lr = torch.clone(ordered_dict.bands_low_lr)
@@ -87,7 +87,7 @@ def s2sharp(ordered_dict):
     fused_20 = fused[:, bands_20_index, :, :]
     fused_60 = fused[:, bands_60_index, :, :]
 
-    return fused, fused_20, fused_60
+    return fused_20, fused_60
 
 
 def inizialization(img, sdf, nb, nl, nc, dx, dy, d, limsub, r):
@@ -155,6 +155,7 @@ def z_step(y, fbm, f, tau, nl, nc, nb, z, mask, q, fdh, fdv, fdhc, fdvc, w):
 
     return z
 
+
 def grad_cost_g(z, f, y, ubtmf_y, fbm, mask, nl, nc, nb, r, tau, q, fdh, fdv, fdhc, fdvc, w):
 
     x = f @ z
@@ -200,6 +201,8 @@ def cg(z, f, y, ubtmf_y, fbm, mask, nl, nc, nb, r, tau, q, fdh, fdv, fdhc, fdvc,
         z = torch.clone(z1)
 
     return z
+
+
 def create_diff_kernels(nl, nc, r):
     dh = torch.zeros(1, nl, nc)
     dh[:, 0, 0] = 1
@@ -213,6 +216,7 @@ def create_diff_kernels(nl, nc, r):
     fdvc = torch.conj(fdv)
 
     return fdh, fdv, fdhc, fdvc
+
 
 def create_conv_kernel(sdf, ratio, nl, nc, nb, dx, dy):
     middle_l = nl // 2
@@ -270,40 +274,6 @@ def create_conv_kernel_subspace(sdf, nl, nc, nb, dx, dy):
 
     return FBM[None, :, :, :]
 
-# if __name__ == '__main__':
-#
-#     ratio = [6, 1, 1, 1, 2, 2, 2, 1, 2, 6, 2, 2]
-#     lambda_opt = 0.005
-#
-#     mtf = [0.32, 0.26, 0.28, 0.24, 0.38, 0.34, 0.34, 0.26, 0.33, 0.26, 0.22, 0.23]
-#     nl = 432
-#     nc = 108
-#     nb = 12
-#     dx = 12
-#     dy = 12
-#     r = 7
-#     q = torch.tensor([1, 1.5, 4, 8, 15, 15, 20]).double()
-#     sigmas = 1
-#
-#
-#
-#     sdf = torch.tensor(ratio) * torch.sqrt(-2 * torch.log(torch.tensor(mtf)) / torch.pi ** 2)
-#     sdf[torch.tensor(ratio) == 1] = 0
-#
-#     f0 = torch.arange(1, 13)[:, None].repeat(1, 7)[None, :, :].double()
-#
-#     mbzt = torch.ones([7, 46656, 12])[None, :, :, :].double()
-#     y = torch.arange(1, 46657)[None, :].repeat(12, 1)[None, :, :].double()
-#     z = torch.arange(1, 46657)[None, :].repeat(7, 1)[None, :, :].double()
-#     fbm = create_conv_kernel(sdf, ratio, nl, nc, len(mtf), dx, dy)
-#
-#     mask = torch.ones([1, 12, 46656]).double()
-#
-#     w = compute_weights(y, ratio, sigmas, nl, nc, nb)
-#     fdh, fdv, fdhc, fdvc = create_diff_kernels(nl, nc, r)
-#
-#     z = z_step(y, fbm, f0, lambda_opt, nl, nc, nb, z, mask, q, fdh, fdv, fdhc, fdvc, w)
-#     f = f_step(f0, z, y, fbm, nl, nc, nb, mask)
 
 if __name__ == '__main__':
     from recordclass import recordclass
@@ -340,14 +310,11 @@ if __name__ == '__main__':
     bands_low_lr = np.concatenate(bands_low_lr, axis=1).astype(np.float64)
     bands_low_lr = torch.from_numpy(bands_low_lr)
 
-    exp_info = {}
-    exp_info['bands_low_lr'] = bands_low_lr
-    exp_info['bands_intermediate'] = bands_intermediate_lr
-    exp_info['bands_high'] = bands_high
+    exp_info = {'bands_low_lr': bands_low_lr, 'bands_intermediate': bands_intermediate_lr, 'bands_high': bands_high}
 
     exp_input = recordclass('exp_info', exp_info.keys())(*exp_info.values())
-    fused, fused20, fused60 = s2sharp(exp_input)
+    fused20, fused60 = s2sharp(exp_input)
 
-    fused_20 = fused.numpy()
+    fused_20 = fused20.numpy()
     plt.figure()
     plt.imshow(fused_20[0, 4, :, :], cmap='gray')
