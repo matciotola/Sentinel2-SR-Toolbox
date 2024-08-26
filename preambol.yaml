@@ -5,11 +5,8 @@ experiment_folders: ['Reduced_Resolution', 'Full_Resolution']
 
 pan_generation: ['selection', 'synthesize']
 
-ad_hoc_algorithms: ['MuSA', 'S2Sharp', 'SupReMe', 'SSSS', 'DSen2', 'FUSE', 'R-FUSE', 'SEL-ATPRK','SYNTH-ATPRK']
+algorithms: ['EXP', 'BDSD', 'BDSD-PC', 'GS', 'GSA', 'BT-H', 'PRACS', 'AWLP', 'MTF-GLP', 'MTF-GLP-FS', 'MTF-GLP-HPM', 'MTF-GLP-HPM-H', 'MTF-GLP-HPM-R', 'SR-D', 'TV', 'SEL-ATPRK', 'SYNTH-ATPRK','MuSA', 'S2Sharp', 'SupReMe', 'SSSS', 'DSen2', 'FUSE', 'S2_SSC_CNN', 'SURE', 'R-FUSE']
 
-tiff_root: '/nas/homes/matteo.ciotola/Dataset_Ugliano'
-
-tiff_images: ['New_York']
 
 save_results: True
 
