@@ -136,7 +136,7 @@ def r_area_area(h, s, x):
 
     return raa
 
-def atp_deconvolution(h, s, x_area, sill_min, range_min, l_sill, l_range, rate, diff_min=1e6):
+def atp_deconvolution(h, s, x_area, sill_min, range_min, l_sill, l_range, rate, diff_min=np.inf):
 
     fa0 = objective_function(x_area, torch.arange(1, s*h+1, dtype=x_area.dtype, device=x_area.device))
     fa0_vector = fa0[s-1::s][None, :]
