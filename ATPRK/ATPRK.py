@@ -4,8 +4,8 @@ from .tools import *
 
 def SYNTH_ATPRK(ordered_dict):
 
-    bands_high = torch.clone(ordered_dict.bands_high)
-    bands_low_lr = torch.clone(ordered_dict.bands_low_lr)
+    bands_10 = torch.clone(ordered_dict.bands_10) / 2 ** 16
+    bands_lr = torch.clone(ordered_dict.ms_lr) / 2 ** 16
     ratio = ordered_dict.ratio
     # hyperparameters
     s = ratio
@@ -21,24 +21,24 @@ def SYNTH_ATPRK(ordered_dict):
     psfh = psf_template(s, w, sigma)
 
     fused = []
-    for i in tqdm(range(bands_low_lr.shape[1])):
-        fused.append(atprk_ms(bands_low_lr[:, i, None, :, :], bands_high, sill_min, range_min, l_sill, l_range, rate, h, w, psfh))
+    for i in tqdm(range(bands_lr.shape[1])):
+        fused.append(atprk_ms(bands_lr[:, i, None, :, :], bands_10, sill_min, range_min, l_sill, l_range, rate, h, w, psfh))
 
-    return torch.cat(fused, dim=1)
+    return torch.cat(fused, dim=1) * 2 ** 16
 
 def atprk_ms(bands_low_lr, bands_high, sill_min, range_min, l_sill, l_range, rate, h, w, psfh):
     _, c1, a1, b1 = bands_low_lr.shape
-    _, c2, a2, b2 = bands_high.shape
+    _, c2, a2, b2 = bands_10.shape
 
-    bands_high = bands_high.double()
+    bands_10 = bands_10.double()
     bands_low_lr = bands_low_lr.double()
 
     s = a2 // a1
 
     # linear regression modeling
 
-    bands_high_upscaled = downsample_cube(bands_high, s, w, psfh)
-    gb0 = torch.flatten(bands_high_upscaled.transpose(2, 3), start_dim=2)
+    bands_10_upscaled = downsample_cube(bands_10, s, w, psfh)
+    gb0 = torch.flatten(bands_10_upscaled.transpose(2, 3), start_dim=2)
     gb1 = torch.flatten(bands_low_lr.transpose(2, 3), start_dim=2)
 
     ones_fill = torch.ones([gb0.shape[0], 1, gb0.shape[2]], dtype=gb0.dtype, device=gb0.device)
@@ -48,11 +48,11 @@ def atprk_ms(bands_low_lr, bands_high, sill_min, range_min, l_sill, l_range, rat
 
     xrc1 = torch.linalg.lstsq(a, b).solution
 
-    gbf = torch.flatten(bands_high.transpose(2, 3), start_dim=2)
+    gbf = torch.flatten(bands_10.transpose(2, 3), start_dim=2)
     ones_fill_fr = torch.ones([gbf.shape[0], 1, gbf.shape[2]], dtype=gbf.dtype, device=gbf.device)
 
     ff1 = torch.cat([ones_fill_fr, gbf], dim=1).transpose(1, 2) @ xrc1
-    z_r = ff1.reshape([bands_high.shape[0], 1, bands_high.shape[2], bands_high.shape[3]]).transpose(2, 3)
+    z_r = ff1.reshape([bands_10.shape[0], 1, bands_10.shape[2], bands_10.shape[3]]).transpose(2, 3)
 
     # residual calculation
 
@@ -70,14 +70,16 @@ def atprk_ms(bands_low_lr, bands_high, sill_min, range_min, l_sill, l_range, rat
     rh = torch.tensor(rh, dtype=rb.dtype, device=rb.device)
     # x = least_square_curve_fitting(objective_function, x0, xdata, rh)
 
-    obj_fun = ObjFunct(xdata, rh)
-    x1 = least_squares(obj_fun, x0, max_nfev=400, tr_solver='exact').x
+    # obj_fun = ObjFunct(xdata, rh)
+    # x1 = least_squares(obj_fun, x0, max_nfev=400, tr_solver='exact').x
+    x1 = lsqcurvefit(obj_func_v1, torch.clone(x0), xdata, rh)
     fa1 = objective_function(x1, torch.arange(1, s * h + 1, dtype=rb.dtype, device=rb.device))
     xp_best = atp_deconvolution(h, s, x1, sill_min, range_min, l_sill, l_range, rate)
     raa0 = r_area_area(h, s, xp_best)
     raa = raa0[1:] - raa0[0]
-    obj_fun = ObjFunct(xdata, raa)
-    x2 = least_squares(obj_fun, x0, max_nfev=400, tr_solver='exact').x
+    x2 = lsqcurvefit(obj_func_v1, torch.clone(x0), xdata, raa)
+    # obj_fun = ObjFunct(xdata, raa)
+    # x2 = least_squares(obj_fun, x0, max_nfev=400, tr_solver='exact').x
     fa2 = objective_function(x2, torch.arange(1, s * h + 1, dtype=rb.dtype, device=rb.device))
 
     yita = atpk_noinform_yita(s, w, xp_best, psfh)
