@@ -1,9 +1,6 @@
 import torch
 from torchvision.transforms.functional import resize
 from torchvision.transforms import InterpolationMode as Inter
-import matplotlib
-
-matplotlib.use('Qt5Agg')
 
 from Utils.spectral_tools import mtf, LPfilterGauss
 from Utils.pansharpening_aux_tools import batch_cov, estimation_alpha
@@ -11,42 +8,44 @@ from Utils.interpolator_tools import ideal_interpolator
 
 
 def MTF_GLP(ordered_dict):
-    bands_low = torch.clone(ordered_dict.bands_low)
-    bands_high = torch.clone(ordered_dict.bands_high)
-    # sensor = ordered_dict.sensor
-    sensor = ordered_dict.mtf_low_name
+    ms = torch.clone(ordered_dict.ms)
+    pan = torch.clone(ordered_dict.pan)
+    sensor = ordered_dict.sensor
     ratio = ordered_dict.ratio
 
-    bs, c, h, w = bands_low.shape
+    bs, c, h, w = ms.shape
 
-    bands_hr = bands_high.repeat(1, c, 1, 1)
+    bands_hr = pan.repeat(1, c, 1, 1)
     bands_hr = (bands_hr - torch.mean(bands_hr, dim=(2, 3), keepdim=True)) * (
-            torch.std(bands_low, dim=(2, 3), keepdim=True) / torch.std(LPfilterGauss(bands_hr, ratio), dim=(2, 3),
-                                                                       keepdim=True)) + torch.mean(bands_low,
+            torch.std(ms, dim=(2, 3), keepdim=True) / torch.std(LPfilterGauss(bands_hr, ratio), dim=(2, 3),
+                                                                       keepdim=True)) + torch.mean(ms,
                                                                                                    dim=(2, 3),
                                                                                                    keepdim=True)
 
-    bands_high_lp = mtf(bands_hr.float(), sensor, ratio)
-    bands_high_lr_lr = resize(bands_high_lp, [h // ratio, w // ratio], interpolation=Inter.NEAREST_EXACT,
-                              antialias=False)
-    # bands_high_lr = interp23tap_torch(bands_high_lr_lr, ratio)
-    bands_high_lr = ideal_interpolator(bands_high_lr_lr, ratio)
+    pan_lp = mtf(bands_hr, sensor, ratio)
 
-    fused = bands_low + bands_hr - bands_high_lr
+    if ratio == 6:
+        pan_lr = pan_lp
+    else:
+        pan_lr_lr = resize(pan_lp, [h // ratio, w // ratio], interpolation=Inter.NEAREST_EXACT,
+                              antialias=False)
+        # pan_lr = interp23tap_torch(pan_lr_lr, ratio)
+        pan_lr = ideal_interpolator(pan_lr_lr, ratio)
+
+    fused = ms + bands_hr - pan_lr
 
     return fused
 
 
 def MTF_GLP_FS(ordered_dict):
-    bands_low = torch.clone(ordered_dict.bands_low)
-    bands_high = torch.clone(ordered_dict.bands_high)
-    # sensor = ordered_dict.sensor
-    sensor = ordered_dict.mtf_low_name
+    ms = torch.clone(ordered_dict.ms)
+    pan = torch.clone(ordered_dict.pan)
+    sensor = ordered_dict.sensor
     ratio = ordered_dict.ratio
 
-    bs, c, h, w = bands_low.shape
+    bs, c, h, w = ms.shape
 
-    bands_hr = bands_high.repeat(1, c, 1, 1)
+    bands_hr = pan.repeat(1, c, 1, 1)
 
     bands_hr_lp = mtf(bands_hr, sensor, ratio)
     bands_hr_lr_lr = resize(bands_hr_lp, [h // ratio, w // ratio], interpolation=Inter.NEAREST_EXACT)
@@ -57,8 +56,8 @@ def MTF_GLP_FS(ordered_dict):
     low_covs = []
     high_covs = []
 
-    for i in range(bands_low.shape[1]):
-        points_lr = torch.cat([bands_low[:, i, None, :, :], bands_hr[:, i, None, :, :]], dim=1)
+    for i in range(ms.shape[1]):
+        points_lr = torch.cat([ms[:, i, None, :, :], bands_hr[:, i, None, :, :]], dim=1)
         points_lr = torch.flatten(points_lr, start_dim=2)
 
         points_hr = torch.cat([bands_hr_lr[:, i, None, :, :], bands_hr[:, i, None, :, :]], dim=1)
@@ -72,61 +71,58 @@ def MTF_GLP_FS(ordered_dict):
 
     gamma = low_covs[:, :, 0, 1] / high_covs[:, :, 0, 1]
     gamma = gamma[:, :, None, None]
-    fused = bands_low + gamma * (bands_hr - bands_hr_lr)
+    fused = ms + gamma * (bands_hr - bands_hr_lr)
 
     return fused
 
 
 def MTF_GLP_HPM(ordered_dict):
-    bands_low = torch.clone(ordered_dict.bands_low)
-    bands_high = torch.clone(ordered_dict.bands_high)
-    # sensor = ordered_dict.sensor
-    sensor = ordered_dict.mtf_low_name
+    ms = torch.clone(ordered_dict.ms)
+    pan = torch.clone(ordered_dict.pan)
+    sensor = ordered_dict.sensor
     ratio = ordered_dict.ratio
 
-    bs, c, h, w = bands_low.shape
+    bs, c, h, w = ms.shape
 
-    bands_hr = bands_high.repeat(1, c, 1, 1)
+    bands_hr = pan.repeat(1, c, 1, 1)
 
     bands_hr = (bands_hr - torch.mean(bands_hr, dim=(2, 3), keepdim=True)) * (
-            torch.std(bands_low, dim=(2, 3), keepdim=True) / torch.std(LPfilterGauss(bands_hr, ratio), dim=(2, 3),
-                                                                       keepdim=True)) + torch.mean(bands_low,
+            torch.std(ms, dim=(2, 3), keepdim=True) / torch.std(LPfilterGauss(bands_hr, ratio), dim=(2, 3),
+                                                                       keepdim=True)) + torch.mean(ms,
                                                                                                    dim=(2, 3),
                                                                                                    keepdim=True)
 
-    bands_hr_lp = mtf(bands_hr.float(), sensor, ratio)
+    bands_hr_lp = mtf(bands_hr, sensor, ratio)
     bands_hr_lr_lr = resize(bands_hr_lp, [h // ratio, w // ratio], interpolation=Inter.NEAREST_EXACT)
     # bands_hr_lr = interp23tap_torch(bands_hr_lr_lr, ratio)
     bands_hr_lr = ideal_interpolator(bands_hr_lr_lr, ratio)
 
-    fused = bands_low * (bands_hr / (bands_hr_lr + torch.finfo(bands_low.dtype).eps))
-
+    fused = ms * torch.clip((bands_hr / (bands_hr_lr + torch.finfo(ms.dtype).eps)), 0, 10.0)
     return fused
 
 
 def MTF_GLP_HPM_H(ordered_dict, decimation=True):
-    bands_low = torch.clone(ordered_dict.bands_low)
-    bands_high = torch.clone(ordered_dict.bands_high)
-    # sensor = ordered_dict.sensor
-    sensor = ordered_dict.mtf_low_name
+    ms = torch.clone(ordered_dict.ms)
+    pan = torch.clone(ordered_dict.pan)
+    sensor = ordered_dict.sensor
     ratio = ordered_dict.ratio
 
-    bs, c, h, w = bands_low.shape
+    bs, c, h, w = ms.shape
 
-    min_bands_low = torch.amin(bands_low, dim=(2, 3), keepdim=True)
-    bands_high_lp = LPfilterGauss(bands_high, ratio)
+    min_ms = torch.amin(ms, dim=(2, 3), keepdim=True)
+    pan_lp = LPfilterGauss(pan, ratio)
 
-    inp = torch.cat([torch.ones(bands_high_lp.shape, dtype=bands_high_lp.dtype, device=bands_high_lp.device),
-                     bands_low],
+    inp = torch.cat([torch.ones(pan_lp.shape, dtype=pan_lp.dtype, device=pan_lp.device),
+                     ms],
                     dim=1)
 
-    alpha = estimation_alpha(inp, bands_high_lp)
+    alpha = estimation_alpha(inp, pan_lp)
 
     alpha_p = torch.bmm(torch.squeeze(alpha, -1).transpose(1, 2), torch.squeeze(
-        torch.cat([torch.ones((bs, 1, 1, 1), device=alpha.device, dtype=alpha.dtype), min_bands_low], dim=1),
+        torch.cat([torch.ones((bs, 1, 1, 1), device=alpha.device, dtype=alpha.dtype), min_ms], dim=1),
         -1).float())[:, :, :, None]
 
-    bands_hr = bands_high.repeat(1, c, 1, 1)
+    bands_hr = pan.repeat(1, c, 1, 1)
 
     bands_hr_lp = mtf(bands_hr, sensor, ratio)
 
@@ -137,23 +133,22 @@ def MTF_GLP_HPM_H(ordered_dict, decimation=True):
 
     bands_hr_pl = (bands_hr - alpha_p) / (bands_hr_lp - alpha_p + torch.finfo(bands_hr_lp.dtype).eps)
 
-    bands_low_l = bands_low - min_bands_low
+    ms_l = ms - min_ms
 
-    fused = bands_low_l * bands_hr_pl + min_bands_low
+    fused = ms_l * bands_hr_pl + min_ms
 
     return fused
 
 
 def MTF_GLP_HPM_R(ordered_dict):
-    bands_low = torch.clone(ordered_dict.bands_low)
-    bands_high = torch.clone(ordered_dict.bands_high)
-    # sensor = ordered_dict.sensor
-    sensor = ordered_dict.mtf_low_name
+    ms = torch.clone(ordered_dict.ms)
+    pan = torch.clone(ordered_dict.pan)
+    sensor = ordered_dict.sensor
     ratio = ordered_dict.ratio
 
-    bs, c, h, w = bands_low.shape
+    bs, c, h, w = ms.shape
 
-    bands_hr = bands_high.repeat(1, c, 1, 1)
+    bands_hr = pan.repeat(1, c, 1, 1)
 
     bands_hr_lp = mtf(bands_hr, sensor, ratio)
     bands_hr_lr_lr = resize(bands_hr_lp, [h // ratio, w // ratio], interpolation=Inter.NEAREST_EXACT)
@@ -162,14 +157,44 @@ def MTF_GLP_HPM_R(ordered_dict):
 
     g = []
     for i in range(c):
-        inp = torch.flatten(torch.cat([bands_low[:, i, None, :, :], bands_hr_lr[:, i, None, :, :]], dim=1),
+        inp = torch.flatten(torch.cat([ms[:, i, None, :, :], bands_hr_lr[:, i, None, :, :]], dim=1),
                             start_dim=2).transpose(1, 2)
         C = batch_cov(inp)
         g.append((C[:, 0, 1] / C[:, 1, 1])[:, None])
 
     g = torch.cat(g, dim=1)[:, :, None, None]
-    cb = torch.mean(bands_low, dim=(2, 3), keepdim=True) / g - torch.mean(bands_hr, dim=(2, 3), keepdim=True)
+    cb = torch.mean(ms, dim=(2, 3), keepdim=True) / g - torch.mean(bands_hr, dim=(2, 3), keepdim=True)
 
-    fused = bands_low * (bands_hr + cb) / (bands_hr_lr + cb + torch.finfo(bands_low.dtype).eps)
+    fused = ms * torch.clip((bands_hr + cb) / (bands_hr_lr + cb + torch.finfo(ms.dtype).eps), 0, 10)
 
     return fused
+
+
+if __name__ == '__main__':
+    from scipy import io
+    import matplotlib
+    matplotlib.use('TkAgg')
+    from matplotlib import pyplot as plt
+    import numpy as np
+    from recordclass import recordclass
+    from Utils.interpolator_tools import interp23tap
+    # temp = io.loadmat('/home/matteo/Desktop/Datasets/WV3_Adelaide_crops/Adelaide_1_zoom.mat')
+    temp = io.loadmat('/home/matteo/Desktop/RR1_Barcelona.mat')
+
+    ms_lr = temp['I_MS_LR'].astype(np.float64)
+    ms = temp['I_MS'].astype(np.float64)
+    pan = temp['I_PAN'].astype(np.float64)
+    ratio = 6
+
+    ms_lr = torch.tensor(np.moveaxis(ms_lr, -1, 0)[None, :, :, :])
+    ms = torch.tensor(np.moveaxis(ms, -1, 0)[None, :, :, :])
+    pan = torch.tensor(pan[None, None, :, :])
+
+    ord_dic = {'ms': ms, 'pan': pan, 'ms_lr': ms_lr, 'ratio': ratio, 'dataset': 'PRISMA'}
+
+    exp_input = recordclass('exp_info', ord_dic.keys())(*ord_dic.values())
+
+    fused = MTF_GLP_HPM(exp_input)
+    plt.figure()
+    plt.imshow(fused[0, 0, :, :].detach().numpy(), cmap='gray')
+    plt.show()
