@@ -3,31 +3,26 @@ from scipy import io
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import inspect
 
-try:
-    from network import FUSEModel
-    from losses import SpectralLoss, StructLoss, RegLoss
-    from input_preprocessing import normalize, denormalize, input_prepro_20, upsample_protocol
-except:
-    from FUSE.network import FUSEModel
-    from FUSE.losses import SpectralLoss, StructLoss, RegLoss
-    from FUSE.input_preprocessing import normalize, denormalize, input_prepro_20, upsample_protocol
+from .network import FUSEModel
+from .losses import SpectralLoss, StructLoss, RegLoss
+from .input_preprocessing import normalize, denormalize, upsample_protocol
 
-from Utils.dl_tools import open_config, generate_paths, TrainingDataset20m, get_patches
+
+from Utils.dl_tools import open_config, generate_paths, TrainingDataset20mRR
 
 
 def FUSE(ordered_dict):
-    bands_high = torch.clone(ordered_dict.bands_high)
-    bands_low_lr = torch.clone(ordered_dict.bands_low_lr)
+    bands_10 = torch.clone(ordered_dict.bands_10).float()
+    bands_20 = torch.clone(ordered_dict.bands_20).float()
 
-    if bands_low_lr.shape[1] < 6:
-        return torch.zeros(bands_low_lr.shape[0], bands_low_lr.shape[1], bands_high.shape[2], bands_high.shape[3], device=bands_low_lr.device, dtype=bands_low_lr.dtype)
+    if bands_20.shape[1] < 6:
+        return torch.zeros(bands_20.shape[0], bands_20.shape[1], bands_10.shape[2], bands_10.shape[3], device=bands_20.device, dtype=bands_20.dtype)
 
-    config_path = 'config.yaml'
-    if not os.path.exists(config_path):
-        config_path = os.path.join('FUSE', 'config.yaml')
-
+    config_path = os.path.join(os.path.dirname(inspect.getfile(FUSEModel)), 'config.yaml')
     config = open_config(config_path)
+
     ratio = 2
 
     os.environ["CUDA_VISIBLE_DEVICES"] = config.gpu_number
@@ -37,23 +32,24 @@ def FUSE(ordered_dict):
 
     net = FUSEModel(config.number_bands_10, config.number_bands_20)
 
-    if not config.train or config.resume:
+    if not (config.train and ordered_dict.img_number == 0) or config.resume:
         if not model_weights_path:
-            model_weights_path = os.path.join('FUSE', 'weights', 'FUSE.tar')
-        net.load_state_dict(torch.load(model_weights_path))
+            model_weights_path = os.path.join(os.path.dirname(inspect.getfile(FUSEModel)), 'weights',
+                                              ordered_dict.dataset + '.tar')
+        if os.path.exists(model_weights_path):
+            net.load_state_dict(torch.load(model_weights_path))
+            print('Weights loaded from: ' + model_weights_path)
 
     net = net.to(device)
 
     if config.train:
-        train_paths_10, train_paths_20, _ = generate_paths(config.training_img_root, config.training_img_names)
-        ds_train = TrainingDataset20m(train_paths_10, train_paths_20, normalize, input_prepro_20, get_patches, ratio,
-                                      config.training_patch_size_20, config.training_patch_size_20)
+        train_paths = generate_paths(config.training_img_root, 'Reduced_Resolution', 'Training',  '20')
+        ds_train = TrainingDataset20mRR(train_paths, normalize)
         train_loader = DataLoader(ds_train, batch_size=config.batch_size, shuffle=True)
 
         if len(config.validation_img_names) != 0:
-            val_paths_10, val_paths_20, _ = generate_paths(config.validation_img_root, config.validation_img_names)
-            ds_val = TrainingDataset20m(val_paths_10, val_paths_20, normalize, input_prepro_20, get_patches, ratio,
-                                        config.training_patch_size_20, config.training_patch_size_20)
+            val_paths = generate_paths(config.training_img_root, 'Reduced_Resolution', 'Validation',  '20')
+            ds_val = TrainingDataset20mRR(val_paths, normalize)
             val_loader = DataLoader(ds_val, batch_size=config.batch_size, shuffle=True)
         else:
             val_loader = None
@@ -70,12 +66,12 @@ def FUSE(ordered_dict):
                 os.makedirs('./Stats/FUSE')
             io.savemat('./Stats/FUSE/Training_FUSE.mat', history)
 
-    bands_high_norm = normalize(bands_high)
-    bands_low = upsample_protocol(bands_low_lr, ratio)
-    bands_low_norm = normalize(bands_low)
+    bands_10_norm = normalize(bands_10)
+    bands_20_up = upsample_protocol(bands_20, ratio)
+    bands_20_up_norm = normalize(bands_20_up)
 
-    input_10 = bands_high_norm.to(device)
-    input_20 = bands_low_norm.to(device)
+    input_10 = bands_10_norm.to(device)
+    input_20 = bands_20_up_norm.to(device)
     net.eval()
     with torch.no_grad():
         fused = net(input_10, input_20)
@@ -121,6 +117,7 @@ def train(device, net, train_loader, config, val_loader=None):
             inputs_10, inputs_20, labels = data
             inputs_10 = inputs_10.to(device)
             inputs_20 = inputs_20.to(device)
+            inputs_20 = upsample_protocol(inputs_20, 2)
             labels = labels.to(device)
 
             outputs = net(inputs_10, inputs_20)
