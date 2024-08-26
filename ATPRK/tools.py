@@ -251,3 +251,29 @@ def mldivide(y, X):
     """
     b = torch.linalg.solve(R, Q.transpose(1, 2) @ y)
     return b
+
+def lsqcurvefit(func, x0, xdata, ydata):
+
+    x0 = x0.double()
+    xdata = xdata.double()
+    ydata = ydata.double()
+
+    x = torch.clone(x0)
+    x.requires_grad = True
+    optimizer = torch.optim.LBFGS([x], lr=1e-1, max_iter=1000, max_eval=1000, tolerance_grad=1e-5, tolerance_change=1e-9, history_size=100, line_search_fn='strong_wolfe')
+    for i in range(100):
+        def closure():
+            optimizer.zero_grad()
+            output = func(x, xdata)
+            loss = F.mse_loss(output, ydata, reduction='sum')
+            loss.backward()
+            return loss
+        optimizer.step(closure)
+
+    return x
+
+
+def obj_func_v1(x, x_data):
+    output = x[0] * (1 - torch.exp(-x_data / x[1]))
+    #loss = F.mse_loss(output, self.y_data, reduction='none')
+    return output
