@@ -118,3 +118,11 @@ if __name__ == '__main__':
     pan = torch.tensor(pan[None, None, :, :])
 
     ord_dic = {'ms': ms, 'pan': pan, 'ms_lr': ms_lr, 'ratio': ratio}
+
+    exp_input = recordclass('exp_info', ord_dic.keys())(*ord_dic.values())
+
+    fused = PRACS(exp_input)
+    fused = torch.clip(fused, 0, 2048.0)
+    plt.figure()
+    plt.imshow(fused[0, 0, :, :].detach().cpu().numpy(), cmap='gray', clim=[0, fused.max()])
+    plt.show()
