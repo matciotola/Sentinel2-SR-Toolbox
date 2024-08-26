@@ -3,6 +3,7 @@ from torchvision.transforms import InterpolationMode as Inter
 from torchvision.transforms.functional import resize
 
 from Utils.spectral_tools import LPFilter
+from Utils.imresize_bicubic import imresize
 
 
 def AWLP(ordered_dict):
