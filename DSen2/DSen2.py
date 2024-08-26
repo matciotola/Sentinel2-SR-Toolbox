@@ -3,36 +3,26 @@ from scipy import io
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import inspect
 
-try:
-    from network import DSen2Model
-    from input_preprocessing import normalize, denormalize, input_prepro_20, input_prepro_60, get_test_patches_20, \
-        get_test_patches_60, recompose_images, upsample_protocol
-except:
-    from DSen2.network import DSen2Model
-    from DSen2.input_preprocessing import normalize, denormalize, input_prepro_20, input_prepro_60, get_test_patches_20, \
-        get_test_patches_60, recompose_images, upsample_protocol
-
-from Utils.dl_tools import open_config, generate_paths, TrainingDataset20m, TrainingDataset60m, get_patches
+from .network import DSen2Model
+from .input_preprocessing import normalize, denormalize, get_test_patches_20, get_test_patches_60, recompose_images
+from Utils.dl_tools import open_config, generate_paths, TrainingDataset20mRR, TrainingDataset60mRR
 
 
 def DSen2(ordered_dict):
-    if ordered_dict.bands_intermediate is None:
+    if ordered_dict.ratio == 2:
         return DSen2_20(ordered_dict)
     else:
         return DSen2_60(ordered_dict)
 
 
 def DSen2_20(ordered_dict):
-    bands_high = torch.clone(ordered_dict.bands_high)
-    bands_low_lr = torch.clone(ordered_dict.bands_low_lr)
+    bands_10 = torch.clone(ordered_dict.bands_10)
+    bands_20 = torch.clone(ordered_dict.bands_20)
 
-    config_path = 'config.yaml'
-    if not os.path.exists(config_path):
-        config_path = os.path.join('DSen2', 'config.yaml')
-
+    config_path = os.path.join(os.path.dirname(inspect.getfile(DSen2Model)), 'config.yaml')
     config = open_config(config_path)
-    ratio = 2
 
     os.environ["CUDA_VISIBLE_DEVICES"] = config.gpu_number
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -41,23 +31,24 @@ def DSen2_20(ordered_dict):
 
     net = DSen2Model((config.number_bands_10, config.number_bands_20))
 
-    if not config.train or config.resume:
+    if not (config.train and ordered_dict.img_number == 0) or config.resume:
         if not model_weights_path:
-            model_weights_path = os.path.join('DSen2', 'weights', 'DSen2_20m.tar')
-        net.load_state_dict(torch.load(model_weights_path))
+            model_weights_path = os.path.join(os.path.dirname(inspect.getfile(DSen2Model)), 'weights',
+                                              ordered_dict.dataset + '_20.tar')
+        if os.path.exists(model_weights_path):
+            net.load_state_dict(torch.load(model_weights_path))
+            print('Weights loaded from: ' + model_weights_path)
 
     net = net.to(device)
 
-    if config.train:
-        train_paths_10, train_paths_20, _ = generate_paths(config.training_img_root, config.training_img_names)
-        ds_train = TrainingDataset20m(train_paths_10, train_paths_20, normalize, input_prepro_20, get_patches, ratio,
-                                      config.training_patch_size_20, config.training_patch_size_20)
+    if (config.train or config.resume) and ordered_dict.img_number == 0:
+        train_paths = generate_paths(config.training_img_root, 'Reduced_Resolution', 'Training',  '20')
+        ds_train = TrainingDataset20mRR(train_paths, normalize)
         train_loader = DataLoader(ds_train, batch_size=config.batch_size, shuffle=True)
 
         if len(config.validation_img_names) != 0:
-            val_paths_10, val_paths_20, _ = generate_paths(config.validation_img_root, config.validation_img_names)
-            ds_val = TrainingDataset20m(val_paths_10, val_paths_20, normalize, input_prepro_20, get_patches, ratio,
-                                        config.training_patch_size_20, config.training_patch_size_20)
+            val_paths = generate_paths(config.training_img_root, 'Reduced_Resolution', 'Validation',  '20')
+            ds_val = TrainingDataset20mRR(val_paths, normalize)
             val_loader = DataLoader(ds_val, batch_size=config.batch_size, shuffle=True)
         else:
             val_loader = None
@@ -74,10 +65,10 @@ def DSen2_20(ordered_dict):
                 os.makedirs('./Stats/DSen2')
             io.savemat('./Stats/DSen2/Training_20m.mat', history)
 
-    bands_high_norm = normalize(bands_high)
-    bands_low_lr_norm = normalize(bands_low_lr)
+    bands_10_norm = normalize(bands_10)
+    bands_20_norm = normalize(bands_20)
 
-    patches_10, patches_20 = get_test_patches_20(bands_high_norm, bands_low_lr_norm,
+    patches_10, patches_20 = get_test_patches_20(bands_10_norm, bands_20_norm,
                                                  patch_size=config.test_patch_size_20, border=config.border_20)
 
     output = []
@@ -89,7 +80,7 @@ def DSen2_20(ordered_dict):
             output.append(net(input_10, input_20))
 
     output = torch.cat(output, dim=0)
-    fused = recompose_images(output, config.border_20, bands_high.shape)
+    fused = recompose_images(output, config.border_20, bands_10.shape)
     fused = denormalize(fused)
 
     torch.cuda.empty_cache()
@@ -97,18 +88,15 @@ def DSen2_20(ordered_dict):
 
 
 def DSen2_60(ordered_dict):
-    bands_high = torch.clone(ordered_dict.bands_high)
-    bands_intermediate_lr = torch.clone(ordered_dict.bands_intermediate)
-    bands_low_lr = torch.clone(ordered_dict.bands_low_lr)
+    bands_10 = torch.clone(ordered_dict.bands_10)
+    bands_20 = torch.clone(ordered_dict.bands_20)
+    bands_60 = torch.clone(ordered_dict.bands_60)
 
-    if bands_low_lr.shape[1] == 3:
-        bands_low_lr = bands_low_lr[:, :-1, :, :]
-
-    config_path = 'config.yaml'
-    if not os.path.exists(config_path):
-        config_path = os.path.join('DSen2', 'config.yaml')
+    config_path = os.path.join(os.path.dirname(inspect.getfile(DSen2Model)), 'config.yaml')
     config = open_config(config_path)
-    ratio = 2
+
+    if bands_60.shape[1] > config.number_bands_60:
+        bands_60 = bands_60[:, :config.number_bands_60, :, :]
 
     os.environ["CUDA_VISIBLE_DEVICES"] = config.gpu_number
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -117,27 +105,24 @@ def DSen2_60(ordered_dict):
 
     net = DSen2Model((config.number_bands_10, config.number_bands_20, config.number_bands_60))
 
-    if not config.train or config.resume:
+    if not (config.train and ordered_dict.img_number == 0) or config.resume:
         if not model_weights_path:
-            model_weights_path = os.path.join('DSen2', 'weights', 'DSen2_60m.tar')
-        net.load_state_dict(torch.load(model_weights_path))
+            model_weights_path = os.path.join(os.path.dirname(inspect.getfile(DSen2Model)), 'weights',
+                                              ordered_dict.dataset + '_60.tar')
+        if os.path.exists(model_weights_path):
+            net.load_state_dict(torch.load(model_weights_path))
+            print('Weights loaded from: ' + model_weights_path)
 
     net = net.to(device)
 
-    if config.train:
-        train_paths_10, train_paths_20, train_paths_60 = generate_paths(config.training_img_root,
-                                                                        config.training_img_names)
-        ds_train = TrainingDataset60m(train_paths_10, train_paths_20, train_paths_60, normalize, input_prepro_60,
-                                      get_patches, ratio,
-                                      config.training_patch_size_60)
+    if (config.train or config.resume) and ordered_dict.img_number == 0:
+        train_paths = generate_paths(config.training_img_root, 'Reduced_Resolution', 'Training',  '60')
+        ds_train = TrainingDataset60mRR(train_paths, normalize)
         train_loader = DataLoader(ds_train, batch_size=config.batch_size, shuffle=True)
 
         if len(config.validation_img_names) != 0:
-            val_paths_10, val_paths_20, val_paths_60 = generate_paths(config.validation_img_root,
-                                                                      config.validation_img_names)
-            ds_val = TrainingDataset60m(val_paths_10, val_paths_20, val_paths_60, normalize, input_prepro_60,
-                                        get_patches, ratio,
-                                        config.training_patch_size_60)
+            val_paths = generate_paths(config.training_img_root, 'Reduced_Resolution', 'Validation',  '60')
+            ds_val = TrainingDataset60mRR(val_paths, normalize)
             val_loader = DataLoader(ds_val, batch_size=config.batch_size, shuffle=True)
         else:
             val_loader = None
@@ -154,12 +139,12 @@ def DSen2_60(ordered_dict):
                 os.makedirs('./Stats/DSen2')
             io.savemat('./Stats/DSen2/Training_60m.mat', history)
 
-    bands_high_norm = normalize(bands_high[:, [2, 1, 0, 3], :, :])
-    bands_intermediate_lr_norm = normalize(bands_intermediate_lr)
-    bands_low_lr_norm = normalize(bands_low_lr)
+    bands_10_norm = normalize(bands_10[:, [2, 1, 0, 3], :, :])
+    bands_20_norm = normalize(bands_20)
+    bands_60_norm = normalize(bands_60)
 
-    patches_10, patches_20, patches_60 = get_test_patches_60(bands_high_norm, bands_intermediate_lr_norm,
-                                                             bands_low_lr_norm, patch_size=config.test_patch_size_60,
+    patches_10, patches_20, patches_60 = get_test_patches_60(bands_10_norm, bands_20_norm,
+                                                             bands_60_norm, patch_size=config.test_patch_size_60,
                                                              border=config.border_60)
 
     output = []
@@ -172,7 +157,7 @@ def DSen2_60(ordered_dict):
             output.append(net(input_10, input_20, input_60))
 
     output = torch.cat(output, dim=0)
-    fused = recompose_images(output, config.border_60, bands_high.shape)
+    fused = recompose_images(output, config.border_60, bands_10.shape)
     fused = denormalize(fused)
 
     torch.cuda.empty_cache()
