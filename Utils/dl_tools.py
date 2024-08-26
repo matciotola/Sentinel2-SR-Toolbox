@@ -36,26 +36,38 @@ def generate_paths(root, names):
 
     return paths_10, paths_20, paths_60
 
+class TrainingDataset20mRR(Dataset):
+    def __init__(self, paths, norm):
+        super(TrainingDataset20mRR, self).__init__()
 
-class TrainingDataset20m(Dataset):
-    def __init__(self, bands_high_paths, bands_low_lr_paths, norm, input_prepro, get_patches, ratio=2, patches_size_lr=33, patch_size_hr=33):
-        super(TrainingDataset20m, self).__init__()
+        images_20_d40 = []
+        images_10_d20 = []
+        images_20 = []
 
-        bands_low_lr = []
-        bands_high = []
+        for i in range(len(paths)):
+            bands_10_d20, bands_20_d40, _, bands_20 = open_mat(paths[i])
+            images_10_d20.append(bands_10_d20)
+            images_20_d40.append(bands_20_d40)
+            images_20.append(bands_20)
 
-        for i in range(len(bands_high_paths)):
-            bands_high.append(open_tiff(bands_high_paths[i]))
-            bands_low_lr.append(open_tiff(bands_low_lr_paths[i]))
+        images_10_d20 = torch.cat(images_10_d20, 0)
+        images_20_d40 = torch.cat(images_20_d40, 0)
+        images_20 = torch.cat(images_20, 0)
 
-        bands_high = torch.cat(bands_high, 0)
-        bands_low_lr = torch.cat(bands_low_lr, 0)
+        images_10_d20 = norm(images_10_d20)
+        images_20_d40 = norm(images_20_d40)
+        images_20 = norm(images_20)
 
-        bands_high_downsampled, bands_low_downsampled, bands_low_lr = input_prepro(bands_high, bands_low_lr, ratio)
+        self.patches_10_d20 = images_10_d20
+        self.patches_20_d40 = images_20_d40
+        self.patches_20 = images_20
 
-        bands_high_downsampled = norm(bands_high_downsampled)
-        bands_low_downsampled = norm(bands_low_downsampled)
-        bands_low_lr = norm(bands_low_lr)
+    def __len__(self):
+        return self.patches_20.shape[0]
+
+    def __getitem__(self, index):
+        return self.patches_10_d20[index], self.patches_20_d40[index], self.patches_20[index]
+
 
 class TrainingDataset60mRR(Dataset):
     def __init__(self, paths, norm):
@@ -101,10 +113,6 @@ class TrainingDataset20mFR(Dataset):
         images_20 = []
         images_10 = []
 
-        for i in range(len(bands_high_paths)):
-            bands_high.append(open_tiff(bands_high_paths[i]))
-            bands_intermediate_lr.append(open_tiff(bands_intermediate_lr_paths[i]))
-            bands_low_lr.append(open_tiff(bands_low_lr_paths[i]))
 
         for i in range(len(paths)):
             bands_10, bands_20, _, _ = open_mat(paths[i])
