@@ -1,6 +1,9 @@
 from torchmin import least_squares
 from tqdm import tqdm
-from .tools import *
+try:
+    from .tools import *
+except:
+    from tools import *
 
 def SYNTH_ATPRK(ordered_dict):
 
@@ -158,8 +161,6 @@ def atprk_pan(bands_low_lr, bands_10, sill_min, range_min, l_sill, l_range, rate
 
     alpha = mldivide(bands_low_col.transpose(1, 2), bands_10_upscaled_col.transpose(1, 2))
 
-    ones_fills_hr = torch.ones(bands_high.shape, dtype=bands_high.dtype, device=bands_high.device)
-    bands_high_col = torch.flatten(torch.cat([bands_high.transpose(-2, -1), ones_fills_hr], dim=1), start_dim=2)
     ones_fills_hr = torch.ones(bands_10.shape, dtype=bands_10.dtype, device=bands_10.device)
     bands_high_col = torch.flatten(torch.cat([bands_10.transpose(-2, -1), ones_fills_hr], dim=1), start_dim=2)
 
@@ -208,4 +209,23 @@ def atprk_pan(bands_low_lr, bands_10, sill_min, range_min, l_sill, l_range, rate
 
 
 
+if __name__ == '__main__':
+
+    from scipy import io
+    import numpy as np
+    from recordclass import recordclass
+
+    bands_low = io.loadmat('/media/matteo/T7/Dataset_Ugliano/MAT/60/New_York.mat')['S2_60m'].astype(np.float64)
+    bands_high = io.loadmat('/media/matteo/T7/Dataset_Ugliano/MAT/10/New_York_60.mat')['S2_10m'].astype(np.float64)
+
+    ratio = 6
+
+    bands_low = torch.tensor(np.moveaxis(bands_low, -1, 0)[None, :, :, :])
+    bands_high = torch.tensor(np.moveaxis(bands_high, -1, 0)[None, :, :, :])
+
+    ord_dic = {'bands_low_lr': bands_low, 'bands_high': bands_high, 'ratio': ratio}
+
+    exp_input = recordclass('exp_info', ord_dic.keys())(*ord_dic.values())
+
+    fused = SEL_ATPRK(exp_input)
 
