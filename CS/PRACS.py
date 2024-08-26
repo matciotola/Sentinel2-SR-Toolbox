@@ -98,3 +98,23 @@ def PRACS(ordered_dict, beta=0.95):
 
     return fused
 
+if __name__ == '__main__':
+    from scipy import io
+    import matplotlib
+    matplotlib.use('QT5Agg')
+    from matplotlib import pyplot as plt
+    import numpy as np
+    from recordclass import recordclass
+    from Utils.interpolator_tools import interp23tap
+    temp = io.loadmat('/home/matteo/Desktop/Datasets/WV3_Adelaide_crops/Adelaide_1_zoom.mat')
+
+    ms_lr = temp['I_MS_LR'].astype(np.float64)
+    ms = interp23tap(ms_lr, 4)
+    pan = temp['I_PAN'].astype(np.float64)
+    ratio = 4
+
+    ms_lr = torch.tensor(np.moveaxis(ms_lr, -1, 0)[None, :, :, :])
+    ms = torch.tensor(np.moveaxis(ms, -1, 0)[None, :, :, :])
+    pan = torch.tensor(pan[None, None, :, :])
+
+    ord_dic = {'ms': ms, 'pan': pan, 'ms_lr': ms_lr, 'ratio': ratio}
