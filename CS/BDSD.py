@@ -178,3 +178,25 @@ def compH_injection(img, S):
     hlow_en = Hlow + mul_Hg.transpose(1, 2)
     hlow_en = torch.reshape(hlow_en, lowres.shape)
     return hlow_en
+
+
+if __name__ == '__main__':
+    import numpy as np
+    from scipy import io
+    from Utils.interpolator_tools import interp23tap
+    import matplotlib
+    matplotlib.use('TkAgg')
+    from matplotlib import pyplot as plt
+    temp = io.loadmat('/home/matteo/Desktop/Datasets/WV3_Adelaide_crops/Adelaide_1_zoom.mat')
+
+    ratio = 4
+    sensor = 'WV3'
+
+    ms_lr = torch.from_numpy(interp23tap(temp['I_MS_LR'].astype(np.float64), 4)).permute(2, 0, 1).unsqueeze(0).double()
+    pan = torch.from_numpy(temp['I_PAN'].astype(np.float64)).unsqueeze(0).unsqueeze(0).double()
+
+
+    fused = BDSD_PC(ms_lr, pan, ratio, sensor)
+    plt.figure()
+    plt.imshow(fused[0, 0, :, :].detach().cpu().numpy(), cmap='gray')
+    plt.show()
