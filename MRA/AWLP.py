@@ -6,41 +6,34 @@ from Utils.spectral_tools import LPFilter
 
 
 def AWLP(ordered_dict):
-    bands_low = torch.clone(ordered_dict.bands_low)
-    bands_high = torch.clone(ordered_dict.bands_high)
+    ms = torch.clone(ordered_dict.ms)
+    pan = torch.clone(ordered_dict.pan)
     ratio = ordered_dict.ratio
 
-    bs, c, h, w = bands_low.shape
+    bs, c, h, w = ms.shape
 
-    mean_low = torch.mean(bands_low, dim=1, keepdim=True)
+    mean_low = torch.mean(ms, dim=1, keepdim=True)
 
-    img_intensity = bands_low / (mean_low + torch.finfo(bands_low.dtype).eps)
+    img_intensity = ms / (mean_low + torch.finfo(ms.dtype).eps)
 
-    bands_high = bands_high.repeat(1, c, 1, 1)
+    pan = pan.repeat(1, c, 1, 1)
 
-    bands_high_lp = resize(
-        resize(bands_high,
-               [bands_high.shape[2] // ratio, bands_high.shape[3] // ratio],
-               interpolation=Inter.BICUBIC,
-               antialias=True),
-        [bands_high.shape[2], bands_high.shape[3]],
-        interpolation=Inter.BICUBIC,
-        antialias=True)
+    pan_lp = imresize(imresize(pan, 1 / ratio), ratio)
 
-    bands_high = (bands_high - torch.mean(bands_high, dim=(2, 3), keepdim=True)) * (
-                torch.std(bands_low, dim=(2, 3), keepdim=True) / torch.std(bands_high_lp, dim=(2, 3),
-                                                                           keepdim=True)) + torch.mean(bands_low,
+    pan = (pan - torch.mean(pan, dim=(2, 3), keepdim=True)) * (
+                torch.std(ms, dim=(2, 3), keepdim=True) / torch.std(pan_lp, dim=(2, 3),
+                                                                           keepdim=True)) + torch.mean(ms,
                                                                                                        dim=(2, 3),
                                                                                                        keepdim=True)
 
-    bands_high_lpp = []
-    for i in range(bands_high.shape[1]):
-        bands_high_lpp.append(LPFilter(bands_high[:, i, None, :, :].float(), ratio))
+    pan_lpp = []
+    for i in range(pan.shape[1]):
+        pan_lpp.append(LPFilter(pan[:, i, None, :, :].type(ms.dtype), ratio))
 
-    bands_high_lpp = torch.cat(bands_high_lpp, dim=1)
+    pan_lpp = torch.cat(pan_lpp, dim=1)
 
-    details = bands_high - bands_high_lpp
+    details = pan - pan_lpp
 
-    fused = details * img_intensity + bands_low
+    fused = details * img_intensity + ms
 
     return fused
