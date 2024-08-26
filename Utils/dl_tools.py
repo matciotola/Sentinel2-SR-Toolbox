@@ -4,7 +4,14 @@ from torch.utils.data import Dataset
 import yaml
 from recordclass import recordclass
 
-from Utils.load_save_tools import open_tiff
+from Utils.load_save_tools import open_mat
+
+def normalize(tensor):
+    return tensor / (2 ** 16)
+
+
+def denormalize(tensor):
+    return tensor * (2 ** 16)
 
 
 def read_yaml(file_path):
@@ -107,10 +114,6 @@ class TrainingDataset20mFR(Dataset):
         images_10 = torch.cat(images_10, 0)
         images_20 = torch.cat(images_20, 0)
 
-        bands_high_downsampled = norm(bands_high_downsampled)
-        bands_intermediate_downsampled = norm(bands_intermediate_downsampled)
-        bands_low_downsampled = norm(bands_low_downsampled)
-        bands_low_lr = norm(bands_low_lr)
         images_10 = norm(images_10)
         images_20 = norm(images_20)
 
