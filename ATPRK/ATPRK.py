@@ -26,7 +26,7 @@ def SYNTH_ATPRK(ordered_dict):
 
     return torch.cat(fused, dim=1) * 2 ** 16
 
-def atprk_ms(bands_low_lr, bands_high, sill_min, range_min, l_sill, l_range, rate, h, w, psfh):
+def atprk_ms(bands_low_lr, bands_10, sill_min, range_min, l_sill, l_range, rate, h, w, psfh):
     _, c1, a1, b1 = bands_low_lr.shape
     _, c2, a2, b2 = bands_10.shape
 
@@ -97,8 +97,8 @@ def atprk_ms(bands_low_lr, bands_high, sill_min, range_min, l_sill, l_range, rat
 
 def SEL_ATPRK(ordered_dict):
 
-    bands_high = torch.clone(ordered_dict.bands_high)
-    bands_low_lr = torch.clone(ordered_dict.bands_low_lr)
+    bands_10 = torch.clone(ordered_dict.bands_10) / 2 ** 16
+    bands_lr = torch.clone(ordered_dict.ms_lr) / 2 ** 16
     ratio = ordered_dict.ratio
 
     # hyperparameters
@@ -118,22 +118,22 @@ def SEL_ATPRK(ordered_dict):
 
     psfh = psf_template(s, w, sigma)
 
-    bands_high_upscaled = downsample_cube(bands_high, s, w, psfh)
+    bands_10_downsampled = downsample_cube(bands_10, s, w, psfh)
 
-    cc_matrix = torch.zeros([bands_low_lr.shape[1], bands_high.shape[1]], dtype=bands_low_lr.dtype, device=bands_low_lr.device)
+    cc_matrix = torch.zeros([bands_lr.shape[1], bands_10.shape[1]], dtype=bands_lr.dtype, device=bands_lr.device)
 
-    for i in range(bands_low_lr.shape[1]):
-        for j in range(bands_high.shape[1]):
-            rmse, cc = evaluate_relation(bands_low_lr[:, i, :, :], bands_high_upscaled[:, j, :, :])
+    for i in range(bands_lr.shape[1]):
+        for j in range(bands_10.shape[1]):
+            rmse, cc = evaluate_relation(bands_lr[:, i, :, :], bands_10_downsampled[:, j, :, :])
             cc_matrix[i, j] = cc
 
     ii, jj = torch.max(cc_matrix, dim=1)
 
     # ATPRK
     fused = []
-    for i in tqdm(range(bands_low_lr.shape[1])):
-        fused.append(atprk_pan(bands_low_lr[:, i, None, :, :], bands_high[:, jj[i], None, :, :], sill_min, range_min, l_sill, l_range, rate, h, w, psfh))
-    return torch.cat(fused, dim=1)
+    for i in tqdm(range(bands_lr.shape[1])):
+        fused.append(atprk_pan(bands_lr[:, i, None, :, :], bands_10[:, jj[i], None, :, :], sill_min, range_min, l_sill, l_range, rate, h, w, psfh))
+    return torch.cat(fused, dim=1) * 2 ** 16
 
 
 def atprk_pan(bands_low_lr, bands_high, sill_min, range_min, l_sill, l_range, rate, h, w, psfh):
