@@ -1,10 +1,9 @@
-experiment_type: ['RR', 'FR']
+ds_root: '/media/matteo/T7/Datasets/'
+datasets: ['OriginalS2']
 
-bands_sr: ['20', '60']
+experiment_folders: ['Reduced_Resolution', 'Full_Resolution']
 
-pan_generation: ['synthesize', 'selection']
-
-pansharpening_based_algorithms: ['BDSD', 'GS', 'GSA', 'BT-H', 'PRACS', 'AWLP', 'MTF-GLP', 'MTF-GLP-FS', 'MTF-GLP-HPM', 'MTF-GLP-HPM-H', 'MTF-GLP-HPM-R']
+pan_generation: ['selection', 'synthesize']
 
 ad_hoc_algorithms: ['MuSA', 'S2Sharp', 'SupReMe', 'SSSS', 'DSen2', 'FUSE', 'R-FUSE', 'SEL-ATPRK','SYNTH-ATPRK']
 
@@ -15,3 +14,4 @@ tiff_images: ['New_York']
 save_results: True
 
 save_root: './Results'
+save_assessment: './Assessment'
