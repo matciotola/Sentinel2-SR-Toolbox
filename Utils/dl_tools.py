@@ -24,17 +24,16 @@ def open_config(file_path):
     return recordclass('config', yaml_file.keys())(*yaml_file.values())
 
 
-def generate_paths(root, names):
-    paths_10 = []
-    paths_20 = []
-    paths_60 = []
+def generate_paths(root, dataset, type, resolution):
+
+    ds_paths = []
+    names = sorted(next(os.walk(os.path.join(root, dataset, resolution, type)))[2])
 
     for name in names:
-        paths_10.append(os.path.join(root, '10', name + '.tif'))
-        paths_20.append(os.path.join(root, '20', name + '.tif'))
-        paths_60.append(os.path.join(root, '60', name + '.tif'))
+        ds_paths.append(os.path.join(root, dataset, resolution, type, name))
 
-    return paths_10, paths_20, paths_60
+    return ds_paths
+
 
 class TrainingDataset20mRR(Dataset):
     def __init__(self, paths, norm):
