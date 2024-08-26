@@ -136,33 +136,35 @@ def SEL_ATPRK(ordered_dict):
     return torch.cat(fused, dim=1) * 2 ** 16
 
 
-def atprk_pan(bands_low_lr, bands_high, sill_min, range_min, l_sill, l_range, rate, h, w, psfh):
+def atprk_pan(bands_low_lr, bands_10, sill_min, range_min, l_sill, l_range, rate, h, w, psfh):
 
     _, c1, a1, b1 = bands_low_lr.shape
-    _, c2, a2, b2 = bands_high.shape
+    _, c2, a2, b2 = bands_10.shape
 
-    bands_high = bands_high.double()
+    bands_10 = bands_10.double()
     bands_low_lr = bands_low_lr.double()
 
     s = a2 // a1
 
     # linear regression modeling
 
-    bands_high_upscaled = downsample_plane(bands_high[:, 0, :, :], s, w, psfh)[None, None, :, :]
+    bands_10_upscaled = downsample_plane(bands_10[:, 0, :, :], s, w, psfh)[None, None, :, :]
 
-    ones_fills = torch.ones(bands_high_upscaled.shape, dtype=bands_high_upscaled.dtype, device=bands_high_upscaled.device)
-    bands_high_upscaled_col = torch.flatten(torch.cat([bands_high_upscaled.transpose(-2, -1), ones_fills], dim=1), start_dim=2)
+    ones_fills = torch.ones(bands_10_upscaled.shape, dtype=bands_10_upscaled.dtype, device=bands_10_upscaled.device)
+    bands_10_upscaled_col = torch.flatten(torch.cat([bands_10_upscaled.transpose(-2, -1), ones_fills], dim=1), start_dim=2)
     bands_low_col = torch.flatten(bands_low_lr.transpose(-2, -1), start_dim=2)
 
-    # alpha = (bands_high_upscaled_col.transpose(1,2).pinverse() @ bands_low_col.transpose(1,2))#[:, None, :, :]
+    # alpha = (bands_10_upscaled_col.transpose(1,2).pinverse() @ bands_low_col.transpose(1,2))#[:, None, :, :]
 
-    alpha = mldivide(bands_low_col.transpose(1, 2), bands_high_upscaled_col.transpose(1, 2))
+    alpha = mldivide(bands_low_col.transpose(1, 2), bands_10_upscaled_col.transpose(1, 2))
 
     ones_fills_hr = torch.ones(bands_high.shape, dtype=bands_high.dtype, device=bands_high.device)
     bands_high_col = torch.flatten(torch.cat([bands_high.transpose(-2, -1), ones_fills_hr], dim=1), start_dim=2)
+    ones_fills_hr = torch.ones(bands_10.shape, dtype=bands_10.dtype, device=bands_10.device)
+    bands_high_col = torch.flatten(torch.cat([bands_10.transpose(-2, -1), ones_fills_hr], dim=1), start_dim=2)
 
     z_r_col = torch.sum(bands_high_col * alpha, dim=1, keepdim=True)
-    z_r = z_r_col.reshape(bands_high.shape).transpose(2,3)
+    z_r = z_r_col.reshape(bands_10.shape).transpose(2, 3)
 
     # residual calculation
 
@@ -180,14 +182,16 @@ def atprk_pan(bands_low_lr, bands_high, sill_min, range_min, l_sill, l_range, ra
     rh = torch.tensor(rh, dtype=rb.dtype, device=rb.device)
     #x = least_square_curve_fitting(objective_function, x0, xdata, rh)
 
-    obj_fun = ObjFunct(xdata, rh)
-    x1 = least_squares(obj_fun, x0, max_nfev=400, tr_solver='exact').x
+    # obj_fun = ObjFunct(xdata, rh)
+    # x1 = least_squares(obj_fun, torch.clone(x0), max_nfev=400, tr_solver='exact').x
+    x1 = lsqcurvefit(obj_func_v1, torch.clone(x0), xdata, rh)
     fa1 = objective_function(x1, torch.arange(1, s*h+1, dtype=rb.dtype, device=rb.device))
     xp_best = atp_deconvolution(h, s, x1, sill_min, range_min, l_sill, l_range, rate)
     raa0 = r_area_area(h, s, xp_best)
     raa = raa0[1:] - raa0[0]
-    obj_fun = ObjFunct(xdata, raa)
-    x2 = least_squares(obj_fun, x0, max_nfev=400, tr_solver='exact').x
+    # obj_fun = ObjFunct(xdata, raa)
+    x2 = lsqcurvefit(obj_func_v1, torch.clone(x0), xdata, raa)
+    # x2 = least_squares(obj_fun, torch.clone(x0), max_nfev=400, tr_solver='exact').x
     fa2 = objective_function(x2, torch.arange(1, s*h+1, dtype=rb.dtype, device=rb.device))
 
     yita = atpk_noinform_yita(s, w, xp_best, psfh)
