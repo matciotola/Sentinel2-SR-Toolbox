@@ -2,10 +2,12 @@ import torch
 
 def estimation_alpha(bands_low, bands_high):
 
-    bands_low_f = torch.flatten(bands_low, start_dim=2).double()
-    bands_high_f = torch.flatten(bands_high, start_dim=2).double()
+def estimation_alpha(ms, pan):
 
-    alpha = torch.linalg.lstsq(bands_low_f.transpose(1, 2), bands_high_f.transpose(1, 2)).solution
+    ms_f = torch.flatten(ms, start_dim=2).double()
+    pan_f = torch.flatten(pan, start_dim=2).double()
+
+    alpha = torch.linalg.lstsq(ms_f.transpose(1, 2), pan_f.transpose(1, 2)).solution
     return alpha[:,:,:, None].float()
 
 
@@ -23,6 +25,7 @@ def batch_cov(points):
     prods = torch.bmm(diffs.unsqueeze(2), diffs.unsqueeze(1)).reshape(B, N, D, D)
     bcov = prods.sum(dim=1) / (N - 1)  # Unbiased estimate
     return bcov  # (B, D, D)
+
 
 def regress(y, X):
     y = y.double()
