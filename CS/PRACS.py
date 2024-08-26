@@ -1,9 +1,7 @@
 import torch
 
-from torchvision.transforms.functional import resize
-from torchvision.transforms import InterpolationMode as Inter
-
 from Utils.pansharpening_aux_tools import regress
+from Utils.imresize_bicubic import imresize
 
 
 def PRACS(ordered_dict, beta=0.95):
