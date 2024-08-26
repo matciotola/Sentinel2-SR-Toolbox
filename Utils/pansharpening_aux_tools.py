@@ -8,11 +8,13 @@ def estimation_alpha(bands_low, bands_high):
     alpha = torch.linalg.lstsq(bands_low_f.transpose(1, 2), bands_high_f.transpose(1, 2)).solution
     return alpha[:,:,:, None].float()
 
+
 def eps(X):
     from torch import floor, log2
     v = floor(log2(abs(X)))
     epsilon = 2**v * torch.finfo(X.dtype).eps
     return epsilon
+
 
 def batch_cov(points):
     B, N, D = points.size()
