@@ -56,40 +56,53 @@ def BDSD_PC(ordered_dict):
     return fused
 
 
-def prepro_BDSD(bands_low, bands_high, indexes, ratio, block_size, high_sensor='S2_10', low_sensor='S2_20'):
+def BDSD(ordered_dict):
+    ms = torch.clone(ordered_dict.ms)
+    pan = torch.clone(ordered_dict.pan)
+    ratio = ordered_dict.ratio
+
+    ms_lr_lp, ms_lr, pan_lr = prepro_BDSD(ms, pan, ratio, ms.shape[-1], ordered_dict.sensor, ordered_dict.sensor_pan)
+
+    gamma = gamma_calculation_BDSD(ms_lr_lp, ms_lr, pan_lr, ratio, ms.shape[-1])
+    fused = fuse_BDSD(ms, pan, gamma, ratio, ms.shape[-1])
+
+    return fused
+
+
+def prepro_BDSD(ms, pan, ratio, block_size, sensor, sensor_pan):
     assert (block_size % 2 == 0), f"block size for local estimation must be even"
     assert (block_size > 1), f"block size for local estimation must be positive"
     assert (block_size % ratio == 0), f"block size must be multiple of ratio"
 
-    _, _, N, M = bands_high.shape
-    _, _, n, m = bands_low.shape
+    _, _, N, M = pan.shape
+    _, _, n, m = ms.shape
     assert (N % block_size == 0) and (
             M % block_size == 0), f"height and widht of 10m bands must be multiple of the block size"
 
-    bands_low = bands_low.float()
-    bands_high = bands_high.float()
+    #ms = ms.float()
+    #pan = pan.float()
     starting = ratio // 2
 
-    bands_high_lp = mtf(bands_high, high_sensor, ratio, indexes)
-    bands_high_lr = bands_high_lp[:, :, starting::ratio, starting::ratio]
-    bands_low_lr = resize(bands_low, [n // ratio, m // ratio], interpolation=Inter.BICUBIC, antialias=True)
+    pan_lp = mtf_pan(pan, sensor_pan, ratio)
+    pan_lr = pan_lp[:, :, starting::ratio, starting::ratio]
+    # ms_lr = resize(ms, [n // ratio, m // ratio], interpolation=Inter.BICUBIC, antialias=True)
+    ms_lr = imresize(ms, scale=1 / ratio)
+    ms_lr_lp = mtf(ms_lr, sensor, ratio)
 
-    bands_low_lr_lp = mtf(bands_low_lr, low_sensor, ratio)
-
-    return bands_low_lr_lp, bands_low_lr, bands_high_lr
+    return ms_lr_lp, ms_lr, pan_lr
 
 
-def gamma_calculation_BDSD(bands_low_lr_lp, bands_low_lr, bands_high_lr, ratio, block_size):
-    alg_input = torch.cat([bands_low_lr_lp, bands_low_lr, bands_high_lr], dim=1)
+def gamma_calculation_BDSD(ms_lr_lp, ms_lr, pan_lr, ratio, block_size):
+    alg_input = torch.cat([ms_lr_lp, ms_lr, pan_lr], dim=1)
     gamma = blockproc(alg_input, (int(block_size // ratio), int(block_size // ratio)), estimate_gamma_cube, block_size,
                       ratio)
     return gamma
 
 
-def fuse_BDSD(bands_low, bands_high, gamma, ratio, block_size):
+def fuse_BDSD(ms, pan, gamma, ratio, block_size):
     ## Fusion
 
-    inputs = torch.cat([bands_low, bands_high, gamma], dim=1)
+    inputs = torch.cat([ms, pan, gamma], dim=1)
 
     fused = blockproc(inputs, (block_size, block_size), compH_injection, block_size, ratio)
 
@@ -141,7 +154,7 @@ def estimate_gamma_cube(img, S):
         b = torch.flatten(b, start_dim=1)[:, :, None]
         bd = torch.flatten(bd, start_dim=1)[:, :, None]
         gamma.append(torch.matmul(B, (b - bd)))
-    gamma = torch.vstack(gamma)[:, None, :, :]
+    gamma = torch.cat(gamma, -1)[None, :, :, :]
     gamma = pad(gamma, (0, S - Nb, 0, S - Nb - 1))
 
     return gamma
