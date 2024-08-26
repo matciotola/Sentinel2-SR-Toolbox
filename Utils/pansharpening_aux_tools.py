@@ -1,6 +1,5 @@
 import torch
 
-def estimation_alpha(bands_low, bands_high):
 
 def estimation_alpha(ms, pan):
 
