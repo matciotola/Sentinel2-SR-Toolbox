@@ -1,34 +1,29 @@
 import os
+import inspect
 from scipy import io
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-try:
-    from network import RFUSEModel
-    from losses import SpectralLoss
-    from input_preprocessing import normalize, denormalize, input_prepro_rr, input_prepro_fr, upsample_protocol
-except:
-    from RFUSE.network import RFUSEModel
-    from RFUSE.losses import SpectralLoss, StructLoss
-    from RFUSE.input_preprocessing import normalize, denormalize, input_prepro_rr, input_prepro_fr, upsample_protocol
+from .network import RFUSEModel
+from .losses import SpectralLoss, StructLoss
+from .input_preprocessing import normalize, denormalize, input_prepro_fr
 
-from Utils.dl_tools import open_config, generate_paths, TrainingDataset20m, get_patches
+
+from Utils.dl_tools import open_config, generate_paths, TrainingDataset20mRR
 
 
 def R_FUSE(ordered_dict):
-    bands_high = torch.clone(ordered_dict.bands_high)
-    bands_low_lr = torch.clone(ordered_dict.bands_low_lr)
+    bands_10 = torch.clone(ordered_dict.bands_10).float()
+    bands_20 = torch.clone(ordered_dict.bands_20).float()
 
-    if bands_low_lr.shape[1] < 6:
-        return torch.zeros(bands_low_lr.shape[0], bands_low_lr.shape[1], bands_high.shape[2], bands_high.shape[3], device=bands_low_lr.device, dtype=bands_low_lr.dtype)
+    if bands_20.shape[1] < 6:
+        return torch.zeros(bands_20.shape[0], bands_20.shape[1], bands_10.shape[2], bands_10.shape[3], device=bands_20.device, dtype=bands_20.dtype)
 
-    config_path = 'config.yaml'
-    if not os.path.exists(config_path):
-        config_path = os.path.join('RFUSE', 'config.yaml')
-
+    config_path = os.path.join(os.path.dirname(inspect.getfile(RFUSEModel)), 'config.yaml')
     config = open_config(config_path)
+
     ratio = 2
 
     os.environ["CUDA_VISIBLE_DEVICES"] = config.gpu_number
@@ -46,15 +41,13 @@ def R_FUSE(ordered_dict):
     net = net.to(device)
 
     if config.train:
-        train_paths_10, train_paths_20, _ = generate_paths(config.training_img_root, config.training_img_names)
-        ds_train = TrainingDataset20m(train_paths_10, train_paths_20, normalize, input_prepro_rr, get_patches, ratio,
-                                      config.training_patch_size_20, config.training_patch_size_10)
+        train_paths = generate_paths(config.training_img_root, 'Reduced_Resolution', 'Training',  '20')
+        ds_train = TrainingDataset20mRR(train_paths, normalize)
         train_loader = DataLoader(ds_train, batch_size=config.batch_size, shuffle=True)
 
         if len(config.validation_img_names) != 0:
-            val_paths_10, val_paths_20, _ = generate_paths(config.validation_img_root, config.validation_img_names)
-            ds_val = TrainingDataset20m(val_paths_10, val_paths_20, normalize, input_prepro_rr, get_patches, ratio,
-                                        config.training_patch_size_20, config.training_patch_size_10)
+            val_paths = generate_paths(config.training_img_root, 'Reduced_Resolution', 'Validation',  '20')
+            ds_val = TrainingDataset20mRR(val_paths, normalize)
             val_loader = DataLoader(ds_val, batch_size=config.batch_size, shuffle=True)
         else:
             val_loader = None
@@ -73,16 +66,16 @@ def R_FUSE(ordered_dict):
 
     # Target Adaptive Phase
 
-    mean = torch.mean(bands_low_lr, dim=(2, 3), keepdim=True)
-    std = torch.std(bands_low_lr, dim=(2, 3), keepdim=True)
+    mean = torch.mean(bands_20, dim=(2, 3), keepdim=True)
+    std = torch.std(bands_20, dim=(2, 3), keepdim=True)
 
-    bands_high_norm = normalize(bands_high)
-    bands_low_lr_norm = normalize(bands_low_lr)
+    bands_10_norm = normalize(bands_10)
+    bands_20_norm = normalize(bands_20)
 
-    bands_high_norm, bands_low_lr_norm, spec_ref, struct_ref = input_prepro_fr(bands_high_norm, bands_low_lr_norm, ratio)
+    bands_10_norm, bands_20_norm, spec_ref, struct_ref = input_prepro_fr(bands_10_norm, bands_20_norm, ratio)
 
-    input_10 = bands_high_norm.to(device)
-    input_20 = bands_low_lr_norm.to(device)
+    input_10 = bands_10_norm.to(device)
+    input_20 = bands_20_norm.to(device)
     spec_ref = spec_ref.to(device)
     struct_ref = struct_ref.to(device)
 
@@ -188,7 +181,7 @@ def target_adaptation(device, net, input_10, input_20, spectral_ref, struct_ref,
     net.train()
 
     pbar = tqdm(range(config.ta_epochs))
-    for epoch in pbar:
+    for _ in pbar:
         optim.zero_grad()
         outputs = net(input_10, input_20)
         spec_loss = spec_criterion(outputs, spectral_ref)
