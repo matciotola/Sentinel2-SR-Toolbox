@@ -20,8 +20,8 @@ def S2_SSC_CNN(ordered_dict):
     config_path = os.path.join(os.path.dirname(inspect.getfile(S2_SSC_CNN_model)), 'config.yaml')
     config = open_config(config_path)
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = config.gpu_number
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #os.environ["CUDA_VISIBLE_DEVICES"] = config.gpu_number
+    device = torch.device("cuda:" + config.gpu_number if torch.cuda.is_available() else "cpu")
 
     # Model
 

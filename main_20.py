@@ -96,7 +96,7 @@ if __name__ == '__main__':
         for experiment_folder in config.experiment_folders:
             if experiment_folder == 'Reduced_Resolution':
                 experiment_folder = os.path.join(experiment_folder, '20')
-            ds_paths += generate_paths(config.ds_root, dataset, 'ValidationA', experiment_folder)
+            ds_paths += generate_paths(config.ds_root, dataset, 'Test', experiment_folder)
 
 
         for i, path in enumerate(ds_paths):

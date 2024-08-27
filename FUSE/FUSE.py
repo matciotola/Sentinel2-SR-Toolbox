@@ -25,8 +25,8 @@ def FUSE(ordered_dict):
 
     ratio = 2
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = config.gpu_number
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #os.environ["CUDA_VISIBLE_DEVICES"] = config.gpu_number
+    device = torch.device("cuda:" + config.gpu_number if torch.cuda.is_available() else "cpu")
 
     model_weights_path = config.model_weights_path
 
