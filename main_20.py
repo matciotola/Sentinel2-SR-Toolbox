@@ -32,7 +32,7 @@ from RFUSE.R_FUSE import R_FUSE
 from S2_SSC_CNN.S2_SCC_CNN import S2_SSC_CNN
 from SURE.SURE import SURE
 
-from Metrics.evaluation import evaluation_rr_20, evaluation_fr_20
+from Metrics.evaluation import evaluation_rr, evaluation_fr
 
 from Utils.dl_tools import generate_paths
 from Utils.load_save_tools import open_mat
