@@ -110,21 +110,21 @@ if __name__ == '__main__':
                 experiment_type = 'RR'
 
             save_assessment = os.path.join(config.save_assessment, dataset, experiment_type)
-            save_root = os.path.join(config.save_root, dataset, name, experiment_type)
+            save_root = os.path.join(config.save_root, dataset, name, experiment_type, '20')
 
-            if not os.path.exists(os.path.join(save_assessment, experiment_type, '20')):
-                os.makedirs(os.path.join(save_assessment, experiment_type, '20'))
+            if not os.path.exists(os.path.join(save_assessment, '20')):
+                os.makedirs(os.path.join(save_assessment, '20'))
 
             if experiment_type == 'RR':
-                if not os.path.exists(os.path.join(save_assessment, experiment_type, '20', name + '_RR.csv')):
-                    with open(os.path.join(save_assessment, experiment_type, '20', name + '_RR.csv'), 'w', encoding='UTF8', newline='') as f:
+                if not os.path.exists(os.path.join(save_assessment, '20', name + '_RR.csv')):
+                    with open(os.path.join(save_assessment, '20', name + '_RR.csv'), 'w', encoding='UTF8', newline='') as f:
                         writer = csv.DictWriter(f, fieldnames=fieldnames_rr)
                         writer.writeheader()
                     f.close()
 
             else:
-                if not os.path.exists(os.path.join(save_assessment, experiment_type, '20', name + '_FR.csv')):
-                    with open(os.path.join(save_assessment, experiment_type, '20', name + '_FR.csv'), 'w', encoding='UTF8', newline='') as f:
+                if not os.path.exists(os.path.join(save_assessment, '20', name + '_FR.csv')):
+                    with open(os.path.join(save_assessment, '20', name + '_FR.csv'), 'w', encoding='UTF8', newline='') as f:
                         writer = csv.DictWriter(f, fieldnames=fieldnames_fr)
                         writer.writeheader()
                     f.close()
@@ -224,23 +224,23 @@ if __name__ == '__main__':
                     print('Elapsed time for executing the algorithm: ' + str(elapsed_time))
                     with torch.no_grad():
                         if experiment_type == 'RR':
-                            metrics_values_rr = list(evaluation_rr_20(fused, torch.clone(gt), ratio=exp_info['ratio']))
+                            metrics_values_rr = list(evaluation_rr(fused, torch.clone(gt), ratio=exp_info['ratio']))
                             metrics_values_rr.insert(0, algorithm)
                             metrics_values_rr.append(elapsed_time)
                             metrics_values_rr_dict = dict(zip(fieldnames_rr, metrics_values_rr))
                             print(metrics_values_rr_dict)
                             metrics_rr.append(metrics_values_rr_dict)
-                            with open(os.path.join(save_assessment, experiment_type, '20', name + '_RR.csv'), 'a', encoding='UTF8', newline='') as f:
+                            with open(os.path.join(save_assessment, '20', name + '_RR.csv'), 'a', encoding='UTF8', newline='') as f:
                                 writer = csv.DictWriter(f, fieldnames=fieldnames_rr)
                                 writer.writerow(metrics_values_rr_dict)
                         else:
-                            metrics_values_fr = list(evaluation_fr_20(fused, torch.clone(bands_10), torch.clone(bands_20), ratio=exp_info['ratio'], sensor=exp_info['sensor']))
+                            metrics_values_fr = list(evaluation_fr(fused, torch.clone(bands_10), torch.clone(bands_20), ratio=exp_info['ratio'], sensor=exp_info['sensor']))
                             metrics_values_fr.insert(0, algorithm)
                             metrics_values_fr.append(elapsed_time)
                             metrics_values_fr_dict = dict(zip(fieldnames_fr, metrics_values_fr))
                             print(metrics_values_fr_dict)
                             metrics_fr.append(metrics_values_fr_dict)
-                            with open(os.path.join(save_assessment, experiment_type, '20', name + '_FR.csv'), 'a', encoding='UTF8', newline='') as f:
+                            with open(os.path.join(save_assessment, '20', name + '_FR.csv'), 'a', encoding='UTF8', newline='') as f:
                                 writer = csv.DictWriter(f, fieldnames=fieldnames_fr)
                                 writer.writerow(metrics_values_fr_dict)
                     if config.save_results:
