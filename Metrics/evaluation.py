@@ -6,7 +6,7 @@ from . import metrics_rr as rr
 from . import metrics_fr as fr
 from .coregistration import fineshift
 
-def evaluation_rr_20(fused, gt, ratio, flag_cut=True, dim_cut=11, L=16):
+def evaluation_rr(fused, gt, ratio, flag_cut=True, dim_cut=11, L=16):
     if flag_cut:
         fused = fused[:, :, dim_cut - 1:-dim_cut, dim_cut - 1:-dim_cut]
         gt = gt[:, :, dim_cut - 1:-dim_cut, dim_cut - 1:-dim_cut]
@@ -24,7 +24,7 @@ def evaluation_rr_20(fused, gt, ratio, flag_cut=True, dim_cut=11, L=16):
     return ergas_index.item(), sam_index.item(), q2n_index.item()
 
 
-def evaluation_fr_20(fused, bands_10, bands_20, ratio, sensor):
+def evaluation_fr(fused, bands_10, bands_lr, ratio, sensor):
     starting = 1
     sigma = 4
 
@@ -44,9 +44,9 @@ def evaluation_fr_20(fused, bands_10, bands_20, ratio, sensor):
     d_rho = fr.D_rho(sigma).to(fused.device)
 
     # Spectral Assessment
-    ergas_index, _ = ergas(fused_lr, bands_20)
-    sam_index, _ = sam(fused_lr, bands_20)
-    q2n_index, _ = q2n(fused_lr, bands_20)
+    ergas_index, _ = ergas(fused_lr, bands_lr)
+    sam_index, _ = sam(fused_lr, bands_lr)
+    q2n_index, _ = q2n(fused_lr, bands_lr)
     d_lambda_index = 1 - q2n_index
 
     # Spatial Assessment
