@@ -6,3 +6,5 @@ learning_rate: 0.01
 
 alpha: 2
 ep: 0.00001
+
+split_test_image_for_prior: True

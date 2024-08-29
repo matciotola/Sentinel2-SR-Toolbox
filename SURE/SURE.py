@@ -45,10 +45,37 @@ def SURE(ordered_dict):
 
     # Network input definition
 
-    net_input = torch.cat((
+    net_input_ = torch.cat((
                            bands_10_norm.to(device),
                            bands_20_interpolated.unsqueeze(0).to(device),
                            bands_60_interpolated.unsqueeze(0).to(device)), dim=1)
+
+    final_net_input = torch.clone(net_input_)
+
+    if config.split_test_image_for_prior:
+        kc_60, kh_60, kw_60 = bands_60_norm.shape[1], 50, 50  # kernel size
+        dc_60, dh_60, dw_60 = bands_60_norm.shape[1], 50, 50  # stride
+
+        kc_20, kh_20, kw_20 = bands_20_norm.shape[1], 150, 150  # kernel size
+        dc_20, dh_20, dw_20 = bands_20_norm.shape[1], 150, 150  # stride
+
+        kc_10, kh_10, kw_10 = bands_10_norm.shape[1], 300, 300  # kernel size
+        dc_10, dh_10, dw_10 = bands_10_norm.shape[1], 300, 300  # stride
+
+        kc_inp, kh_inp, kw_inp = net_input_.shape[1], 300, 300  # kernel size
+        dc_inp, dh_inp, dw_inp = net_input_.shape[1], 300, 300  # stride
+
+        bands_10_patches = bands_10_norm.unfold(1, kc_10, dc_10).unfold(2, kh_10, dh_10).unfold(3, kw_10, dw_10)
+        bands_10_norm = bands_10_patches.contiguous().view(-1, kc_10, kh_10, kw_10).to(device)
+
+        bands_20_patches = bands_20_norm.unfold(1, kc_20, dc_20).unfold(2, kh_20, dh_20).unfold(3, kw_20, dw_20)
+        bands_20_norm = bands_20_patches.contiguous().view(-1, kc_20, kh_20, kw_20).to(device)
+
+        bands_60_patches = bands_60_norm.unfold(1, kc_60, dc_60).unfold(2, kh_60, dh_60).unfold(3, kw_60, dw_60)
+        bands_60_norm = bands_60_patches.contiguous().view(-1, kc_60, kh_60, kw_60).to(device)
+
+        ms_lr_patches = net_input_.unfold(1, kc_inp, dc_inp).unfold(2, kh_inp, dh_inp).unfold(3, kw_inp, dw_inp)
+        net_input_ = ms_lr_patches.contiguous().view(-1, kc_inp, kh_inp, kw_inp).to(device)
 
     # Network definition
 
@@ -56,7 +83,7 @@ def SURE(ordered_dict):
     optim = torch.optim.Adam(net.parameters(), lr=config.learning_rate, eps=1e-3, amsgrad=True)
 
     net = net.to(device)
-    net_input = net_input.to(device)
+    #net_input_ = net_input_.to(device)
 
     # Loss definition
     criterion_bp = BPLoss(psf_20, psf_60, config.cond).to(device)
@@ -69,24 +96,31 @@ def SURE(ordered_dict):
     # Zero-Shot Fitting
     pbar = tqdm(range(config.num_iter))
     for _ in pbar:
-        optim.zero_grad()
-        outputs = net(net_input)
+        running_bp_loss = 0.0
+        running_sure_loss = 0.0
+        for bs in range(net_input_.shape[0]):
 
-        loss_bp = criterion_bp(outputs, bands_10_norm, bands_20_norm, bands_60_norm)
+            optim.zero_grad()
+            net_input = net_input_[bs:bs+1, :, :, :].to(device)
+            outputs = net(net_input)
 
-        inp_e = torch.randn(net_input.shape, dtype=net_input.dtype).to(device)
-        outputs_e = (net(net_input + config.ep * inp_e) - outputs) / config.ep
-        div = criterion_sure(inp_e, outputs_e)
+            loss_bp = criterion_bp(outputs, bands_10_norm[bs:bs+1, :, :, :], bands_20_norm[bs:bs+1, :, :, :], bands_60_norm[bs:bs+1, :, :, :])
 
-        loss = loss_bp + config.alpha * div
-        loss.backward()
-        optim.step()
+            inp_e = torch.randn(net_input.shape, dtype=net_input.dtype).to(device)
+            outputs_e = (net(net_input + config.ep * inp_e) - outputs) / config.ep
+            div = criterion_sure(inp_e, outputs_e)
 
-        pbar.set_postfix({'BP Loss': loss_bp.item(), 'SURE Loss': div.item()})
+            loss = loss_bp + config.alpha * div
+            loss.backward()
+            optim.step()
+            running_bp_loss += loss_bp.item()
+            running_sure_loss += div.item()
+
+        pbar.set_postfix({'BP Loss': running_bp_loss / net_input_.shape[0], 'SURE Loss': running_sure_loss / net_input_.shape[0]})
 
     net = net.eval()
     with torch.no_grad():
-        outputs = net(net_input).detach().cpu()
+        outputs = net(final_net_input).detach().cpu()
 
     outputs_20 = outputs[:, 4:10, :, :]
     outputs_60 = outputs[:, 10:, :, :]
