@@ -180,7 +180,7 @@ if __name__ == '__main__':
                         with torch.no_grad():
                             if experiment_type == 'RR':
                                 metrics_values_rr = list(
-                                    evaluation_rr_20(fused, torch.clone(gt), ratio=exp_info['ratio']))
+                                    evaluation_rr(fused, torch.clone(gt), ratio=exp_info['ratio']))
                                 metrics_values_rr.insert(0, algorithm)
                                 metrics_values_rr.append(elapsed_time)
                                 metrics_values_rr_dict = dict(zip(fieldnames_rr, metrics_values_rr))
@@ -192,8 +192,8 @@ if __name__ == '__main__':
                                     writer.writerow(metrics_values_rr_dict)
                             else:
                                 metrics_values_fr = list(
-                                    evaluation_fr_20(fused, torch.clone(bands_10), torch.clone(bands_20),
-                                                     ratio=exp_info['ratio'], sensor=exp_info['sensor']))
+                                    evaluation_fr(fused, torch.clone(bands_10), torch.clone(bands_20),
+                                                  ratio=exp_info['ratio'], sensor=exp_info['sensor']))
                                 metrics_values_fr.insert(0, algorithm)
                                 metrics_values_fr.append(elapsed_time)
                                 metrics_values_fr_dict = dict(zip(fieldnames_fr, metrics_values_fr))
