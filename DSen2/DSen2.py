@@ -6,7 +6,7 @@ from tqdm import tqdm
 import inspect
 
 from .network import DSen2Model
-from .input_preprocessing import normalize, denormalize, get_test_patches_20, get_test_patches_60, recompose_images
+from .input_preprocessing import normalize, denormalize, get_test_patches_20, get_test_patches_60, recompose_images, upsample_protocol
 from Utils.dl_tools import open_config, generate_paths, TrainingDataset20mRR, TrainingDataset60mRR
 
 
@@ -227,8 +227,10 @@ def train(device, net, train_loader, config, val_loader=None):
                         inputs_60 = None
                     else:
                         inputs_10, inputs_20, inputs_60, labels = data
+                        inputs_60 = upsample_protocol(inputs_60, inputs_10.shape).float()
                         inputs_60 = inputs_60.to(device)
                     inputs_10 = inputs_10.to(device)
+                    inputs_20 = upsample_protocol(inputs_20, inputs_10.shape).float()
                     inputs_20 = inputs_20.to(device)
                     labels = labels.to(device)
                     if inputs_60 is None:
