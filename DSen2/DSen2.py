@@ -98,8 +98,8 @@ def DSen2_60(ordered_dict):
     if bands_60.shape[1] > config.number_bands_60:
         bands_60 = bands_60[:, :config.number_bands_60, :, :]
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = config.gpu_number
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #os.environ["CUDA_VISIBLE_DEVICES"] = config.gpu_number
+    device = torch.device("cuda:" + config.gpu_number if torch.cuda.is_available() else "cpu")
 
     model_weights_path = config.model_weights_path
 
