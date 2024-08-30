@@ -50,10 +50,10 @@ def DSen2_20(ordered_dict):
         ds_train = TrainingDataset20mRR(train_paths, normalize)
         train_loader = DataLoader(ds_train, batch_size=config.batch_size, shuffle=True)
 
-        if len(config.validation_img_names) != 0:
-            val_paths = generate_paths(config.training_img_root, 'Reduced_Resolution', 'Validation',  '20')
+        if config.validation:
+            val_paths = generate_paths(training_img_root, ordered_dict.dataset, 'Validation', os.path.join('Reduced_Resolution', '20'))
             ds_val = TrainingDataset20mRR(val_paths, normalize)
-            val_loader = DataLoader(ds_val, batch_size=config.batch_size, shuffle=True)
+            val_loader = DataLoader(ds_val, batch_size=config.batch_size, shuffle=False)
         else:
             val_loader = None
 
