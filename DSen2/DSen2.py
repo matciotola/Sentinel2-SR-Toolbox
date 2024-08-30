@@ -42,7 +42,11 @@ def DSen2_20(ordered_dict):
     net = net.to(device)
 
     if (config.train or config.resume) and ordered_dict.img_number == 0:
-        train_paths = generate_paths(config.training_img_root, 'Reduced_Resolution', 'Training',  '20')
+        if config.training_img_root == '':
+            training_img_root = ordered_dict.root
+        else:
+            training_img_root = config.training_img_root
+        train_paths = generate_paths(training_img_root, ordered_dict.dataset, 'Training', os.path.join('Reduced_Resolution', '20'))
         ds_train = TrainingDataset20mRR(train_paths, normalize)
         train_loader = DataLoader(ds_train, batch_size=config.batch_size, shuffle=True)
 
