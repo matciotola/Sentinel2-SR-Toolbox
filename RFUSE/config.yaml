@@ -1,21 +1,20 @@
 train: False
+validation: False
 
 gpu_number: '0'
 
-training_img_root: '/media/matteo/T7/Dataset_Ugliano/'
-validation_img_root: ''
+training_img_root: ''
 
-training_img_names: ['New_York']
-validation_img_names: []
 
 number_bands_10: 4
 number_bands_20: 6
+number_bands_60: 2
 
 # Training settings
 
 resume: False
 save_weights: True
-save_weights_path: '/home/matteo/PycharmProjects/S2SRToolbox/RFUSE/weights/R-FUSE.tar'
+save_weights_path: 'weights'
 save_training_stats: False
 
 # Training hyperparameters
