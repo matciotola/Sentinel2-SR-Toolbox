@@ -279,7 +279,7 @@ def train(device, net, train_loader, config, ordered_dict, val_loader=None):
     return history
 
 
-def target_adaptation(device, net, input_10, input_20, spectral_ref, struct_ref, config):
+def target_adaptation(device, net, input_10, input_lr, spectral_ref, struct_ref, ratio, config):
     optim = torch.optim.Adam(net.parameters(), lr=config.ta_learning_rate)
     net = net.to(device)
     input_10 = input_10.to(device)
