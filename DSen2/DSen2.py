@@ -57,7 +57,7 @@ def DSen2_20(ordered_dict):
         else:
             val_loader = None
 
-        net, history = train(device, net, train_loader, config, val_loader)
+        history = train(device, net, train_loader, config, val_loader)
 
         if config.save_weights:
             if not os.path.exists(
@@ -135,7 +135,8 @@ def DSen2_60(ordered_dict):
             val_loader = DataLoader(ds_val, batch_size=config.batch_size, shuffle=True)
         else:
             val_loader = None
-        net, history = train(device, net, train_loader, config, val_loader)
+
+        history = train(device, net, train_loader, config, val_loader)
 
         if config.save_weights:
             if not os.path.exists(config.save_weights_path):
@@ -265,4 +266,4 @@ def train(device, net, train_loader, config, val_loader=None):
     history = {'loss': history_loss, 'metric': history_metric, 'val_loss': history_val_loss,
                'val_metric': history_val_metric}
 
-    return net, history
+    return history
