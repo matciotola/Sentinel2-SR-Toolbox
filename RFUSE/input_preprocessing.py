@@ -83,7 +83,10 @@ def fuseUpGenDetailRef(bands_high, bands_low_lr, ratio=2, w_size=3, shrink=5):
     eXsum = torch.sum(eX, 1, keepdim=True)
     eX = eX / eXsum
     hp = []
-
+    if ratio == 2:
+        sensor = 'S2-20'
+    else:
+        sensor = 'S2-60'
     for b in range(bands_high.shape[1]):
         temp = bands_high[:, b, None, :, :].repeat(1, bands_low_lr.shape[1], 1, 1)
         temp1 = temp - mtf(temp, 'S2-20', ratio, mode='replicate')
