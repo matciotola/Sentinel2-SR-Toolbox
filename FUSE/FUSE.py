@@ -13,6 +13,13 @@ from Utils.dl_tools import open_config, generate_paths, TrainingDataset20mRR, Tr
 
 
 def FUSE(ordered_dict):
+    if ordered_dict.ratio == 2:
+        return FUSE_20(ordered_dict)
+    else:
+        return FUSE_60(ordered_dict)
+
+
+def FUSE_20(ordered_dict):
     bands_10 = torch.clone(ordered_dict.bands_10).float()
     bands_20 = torch.clone(ordered_dict.bands_20).float()
 
@@ -81,7 +88,80 @@ def FUSE(ordered_dict):
     return fused.cpu().detach()
 
 
-def train(device, net, train_loader, config, val_loader=None):
+def FUSE_60(ordered_dict):
+    bands_10 = torch.clone(ordered_dict.bands_10).float()
+    bands_60 = torch.clone(ordered_dict.bands_60).float()
+
+    config_path = os.path.join(os.path.dirname(inspect.getfile(FUSEModel)), 'config.yaml')
+    config = open_config(config_path)
+
+    #os.environ["CUDA_VISIBLE_DEVICES"] = config.gpu_number
+    device = torch.device("cuda:" + config.gpu_number if torch.cuda.is_available() else "cpu")
+
+    model_weights_path = config.model_weights_path
+
+    net = FUSEModel(config.number_bands_10, config.number_bands_60, ratio=ordered_dict.ratio)
+
+    if not (config.train and ordered_dict.img_number == 0) or config.resume:
+        if not model_weights_path:
+            model_weights_path = os.path.join(os.path.dirname(inspect.getfile(FUSEModel)), 'weights',
+                                              ordered_dict.dataset + '_60.tar')
+        if os.path.exists(model_weights_path):
+            net.load_state_dict(torch.load(model_weights_path))
+            print('Weights loaded from: ' + model_weights_path)
+
+    net = net.to(device)
+
+    if (config.train or config.resume) and ordered_dict.img_number == 0:
+        if config.training_img_root == '':
+            training_img_root = ordered_dict.root
+        else:
+            training_img_root = config.training_img_root
+        train_paths = generate_paths(training_img_root, ordered_dict.dataset, 'Training', os.path.join('Reduced_Resolution', '60'))
+        ds_train = TrainingDataset60mRR(train_paths, normalize)
+        train_loader = DataLoader(ds_train, batch_size=config.batch_size, shuffle=True)
+
+        if config.validation:
+            val_paths = generate_paths(training_img_root, ordered_dict.dataset, 'Validation', os.path.join('Reduced_Resolution', '60'))
+            ds_val = TrainingDataset60mRR(val_paths, normalize)
+            val_loader = DataLoader(ds_val, batch_size=config.batch_size, shuffle=True)
+        else:
+            val_loader = None
+
+        history = train(device, net, train_loader, config, ordered_dict, val_loader)
+
+        if config.save_weights:
+            if not os.path.exists(
+                    os.path.join(os.path.dirname(inspect.getfile(FUSEModel)), config.save_weights_path)):
+                os.makedirs(os.path.join(os.path.dirname(inspect.getfile(FUSEModel)), config.save_weights_path))
+            torch.save(net.state_dict(),
+                       os.path.join(os.path.dirname(inspect.getfile(FUSEModel)), config.save_weights_path,
+                                    ordered_dict.dataset + '_60.tar'))
+
+        if config.save_training_stats:
+            if not os.path.exists(os.path.join(os.path.dirname(inspect.getfile(FUSEModel)), 'Stats', 'FUSE')):
+                os.makedirs(os.path.join(os.path.dirname(inspect.getfile(FUSEModel)), 'Stats', 'FUSE'))
+            io.savemat(
+                os.path.join(os.path.dirname(inspect.getfile(FUSEModel)), 'Stats', 'FUSE', 'Training_FUSE_20.mat'),
+                history)
+
+    bands_10_norm = normalize(bands_10)
+    bands_60_up = upsample_protocol(bands_60, ordered_dict.ratio)
+    bands_60_up_norm = normalize(bands_60_up)
+
+    input_10 = bands_10_norm.to(device)
+    input_60 = bands_60_up_norm.to(device)
+    net.eval()
+    with torch.no_grad():
+        fused = net(input_10, input_60)
+
+    fused = denormalize(fused)
+
+    torch.cuda.empty_cache()
+    return fused.cpu().detach()
+
+
+def train(device, net, train_loader, config, ordered_dict, val_loader=None):
     criterion_spec = SpectralLoss().to(device)
     criterion_struct = StructLoss().to(device)
     criterion_reg = RegLoss().to(device)
@@ -113,13 +193,18 @@ def train(device, net, train_loader, config, val_loader=None):
         for i, data in enumerate(train_loader):
             optim.zero_grad()
 
-            inputs_10, inputs_20, labels = data
-            inputs_10 = inputs_10.to(device)
-            inputs_20 = inputs_20.to(device)
-            inputs_20 = upsample_protocol(inputs_20, 2)
-            labels = labels.to(device)
+            if len(data) == 3:
+                inputs_10, inputs_20, labels = data
+                inputs_lr = inputs_20
+            else:
+                inputs_10, _, inputs_60, labels = data
+                inputs_lr = inputs_60
 
-            outputs = net(inputs_10, inputs_20)
+            inputs_10 = inputs_10.float().to(device)
+            inputs_lr = upsample_protocol(inputs_lr, ordered_dict.ratio).float().to(device)
+            labels = labels.float().to(device)
+
+            outputs = net(inputs_10, inputs_lr)
 
             loss_spec = criterion_spec(outputs, labels)
             loss_struct = criterion_struct(outputs, labels)
@@ -141,12 +226,18 @@ def train(device, net, train_loader, config, val_loader=None):
             net.eval()
             with torch.no_grad():
                 for i, data in enumerate(val_loader):
-                    inputs_10, inputs_20, labels = data
-                    inputs_10 = inputs_10.to(device)
-                    inputs_20 = inputs_20.to(device)
-                    labels = labels.to(device)
+                    if len(data) == 3:
+                        inputs_10, inputs_20, labels = data
+                        inputs_lr = inputs_20
+                    else:
+                        inputs_10, _, inputs_60, labels = data
+                        inputs_lr = inputs_60
 
-                    outputs = net(inputs_10, inputs_20)
+                    inputs_10 = inputs_10.float().to(device)
+                    inputs_lr = upsample_protocol(inputs_lr, ordered_dict.ratio).float().to(device)
+                    labels = labels.float().to(device)
+
+                    outputs = net(inputs_10, inputs_lr)
 
                     val_loss_spec = criterion_spec(outputs, labels)
                     val_loss_struct = criterion_struct(outputs, labels)
