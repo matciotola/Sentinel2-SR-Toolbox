@@ -26,8 +26,6 @@ def FUSE_20(ordered_dict):
     config_path = os.path.join(os.path.dirname(inspect.getfile(FUSEModel)), 'config.yaml')
     config = open_config(config_path)
 
-    ratio = 2
-
     #os.environ["CUDA_VISIBLE_DEVICES"] = config.gpu_number
     device = torch.device("cuda:" + config.gpu_number if torch.cuda.is_available() else "cpu")
 
