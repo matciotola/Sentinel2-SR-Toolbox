@@ -5,7 +5,7 @@ from Utils.spectral_tools import gen_mtf, mtf_kernel_to_torch
 
 
 class FUSEModel(nn.Module):
-    def __init__(self, bands_10=4, bands_20=6, ratio=2):
+    def __init__(self, bands_10=4, bands_lr=6, ratio=2):
         super(FUSEModel, self).__init__()
         self.ratio = ratio
         in_channels = bands_10 + bands_lr
