@@ -153,9 +153,11 @@ def DSen2_60(ordered_dict):
                                     ordered_dict.dataset + '_60.tar'))
 
         if config.save_training_stats:
-            if not os.path.exists('./Stats/DSen2'):
-                os.makedirs('./Stats/DSen2')
-            io.savemat('./Stats/DSen2/Training_60m.mat', history)
+            if not os.path.exists(os.path.join(os.path.dirname(inspect.getfile(DSen2Model)), 'Stats', 'DSen2')):
+                os.makedirs(os.path.join(os.path.dirname(inspect.getfile(DSen2Model)), 'Stats', 'DSen2'))
+            io.savemat(
+                os.path.join(os.path.dirname(inspect.getfile(DSen2Model)), 'Stats', 'DSen2', 'Training_DSen2_60.mat'),
+                history)
 
     bands_10_norm = normalize(bands_10[:, [2, 1, 0, 3], :, :])
     bands_20_norm = normalize(bands_20)
