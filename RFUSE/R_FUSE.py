@@ -85,7 +85,7 @@ def R_FUSE_20(ordered_dict):
     bands_10_norm = normalize(bands_10)
     bands_20_norm = normalize(bands_20)
 
-    bands_10_norm, bands_20_norm, spec_ref, struct_ref = input_prepro_fr(bands_10_norm, bands_20_norm, ratio)
+    bands_10_norm, bands_20_norm, spec_ref, struct_ref = input_prepro_fr(bands_10_norm, bands_20_norm, ordered_dict.ratio)
 
     input_10 = bands_10_norm.to(device)
     input_20 = bands_20_norm.to(device)
