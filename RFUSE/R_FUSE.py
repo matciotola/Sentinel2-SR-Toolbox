@@ -39,10 +39,13 @@ def R_FUSE_20(ordered_dict):
 
     net = RFUSEModel(config.number_bands_10, config.number_bands_20, ratio=ordered_dict.ratio)
 
-    if not config.train or config.resume:
+    if not (config.train and ordered_dict.img_number == 0) or config.resume:
         if not model_weights_path:
-            model_weights_path = os.path.join('RFUSE', 'weights', 'R-FUSE.tar')
-        net.load_state_dict(torch.load(model_weights_path))
+            model_weights_path = os.path.join(os.path.dirname(inspect.getfile(RFUSEModel)), 'weights',
+                                              ordered_dict.dataset + '_20.tar')
+        if os.path.exists(model_weights_path):
+            net.load_state_dict(torch.load(model_weights_path))
+            print('Weights loaded from: ' + model_weights_path)
 
     net = net.to(device)
 
