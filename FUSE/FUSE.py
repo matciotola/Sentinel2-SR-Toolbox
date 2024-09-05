@@ -77,7 +77,7 @@ def FUSE_20(ordered_dict):
                 history)
 
     bands_10_norm = normalize(bands_10)
-    bands_20_up = upsample_protocol(bands_20, ratio)
+    bands_20_up = upsample_protocol(bands_20, ordered_dict.ratio)
     bands_20_up_norm = normalize(bands_20_up)
 
     input_10 = bands_10_norm.to(device)
