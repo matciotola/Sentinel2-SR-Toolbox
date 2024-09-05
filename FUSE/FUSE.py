@@ -9,8 +9,7 @@ from .network import FUSEModel
 from .losses import SpectralLoss, StructLoss, RegLoss
 from .input_preprocessing import normalize, denormalize, upsample_protocol
 
-
-from Utils.dl_tools import open_config, generate_paths, TrainingDataset20mRR
+from Utils.dl_tools import open_config, generate_paths, TrainingDataset20mRR, TrainingDataset60mRR
 
 
 def FUSE(ordered_dict):
