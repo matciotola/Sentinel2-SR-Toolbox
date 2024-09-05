@@ -216,6 +216,7 @@ def train(device, net, train_loader, config, val_loader=None):
                 inputs_10, inputs_20, labels = data
             else:
                 inputs_10, inputs_20, inputs_60, labels = data
+                inputs_60 = upsample_protocol(inputs_60, inputs_10.shape).float()
                 inputs_60 = inputs_60.to(device)
 
             inputs_10 = inputs_10[:, [2, 1, 0, 3], :, :].float().to(device)
