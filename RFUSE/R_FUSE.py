@@ -3,15 +3,15 @@ import inspect
 from scipy import io
 import torch
 from torch import nn
+import torch.nn.functional as func
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from .network import RFUSEModel
 from .losses import SpectralLoss, StructLoss
-from .input_preprocessing import normalize, denormalize, input_prepro_fr
+from .input_preprocessing import input_prepro_fr, normalize, denormalize
 
-
-from Utils.dl_tools import open_config, generate_paths, TrainingDataset20mRR
+from Utils.dl_tools import open_config, generate_paths, TrainingDataset20mRR, TrainingDataset60mRR
 
 
 def R_FUSE(ordered_dict):
