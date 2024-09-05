@@ -23,9 +23,6 @@ def FUSE_20(ordered_dict):
     bands_10 = torch.clone(ordered_dict.bands_10).float()
     bands_20 = torch.clone(ordered_dict.bands_20).float()
 
-    if bands_20.shape[1] < 6:
-        return torch.zeros(bands_20.shape[0], bands_20.shape[1], bands_10.shape[2], bands_10.shape[3], device=bands_20.device, dtype=bands_20.dtype)
-
     config_path = os.path.join(os.path.dirname(inspect.getfile(FUSEModel)), 'config.yaml')
     config = open_config(config_path)
 
