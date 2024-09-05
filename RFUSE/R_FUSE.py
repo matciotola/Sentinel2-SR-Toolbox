@@ -71,9 +71,11 @@ def R_FUSE_20(ordered_dict):
                                     ordered_dict.dataset + '_20.tar'))
 
         if config.save_training_stats:
-            if not os.path.exists('./Stats/R-FUSE'):
-                os.makedirs('./Stats/R-FUSE')
-            io.savemat('./Stats/R-FUSE/Training_20m.mat', history)
+            if not os.path.exists(os.path.join(os.path.dirname(inspect.getfile(RFUSEModel)), 'Stats', 'R-FUSE')):
+                os.makedirs(os.path.join(os.path.dirname(inspect.getfile(RFUSEModel)), 'Stats', 'R-FUSE'))
+            io.savemat(
+                os.path.join(os.path.dirname(inspect.getfile(RFUSEModel)), 'Stats', 'R-FUSE', 'Training_R-FUSE_20.mat'),
+                history)
 
     # Target Adaptive Phase
 
