@@ -78,10 +78,10 @@ class TrainingDataset60mRR(Dataset):
 
         for i in range(len(paths)):
             bands_10_d60, bands_20_d120, bands_60_d360, bands_60 = open_mat(paths[i])
-            images_10_d60.append(bands_10_d60)
-            images_20_d120.append(bands_20_d120)
-            images_60_d360.append(bands_60_d360)
-            images_60.append(bands_60)
+            images_10_d60.append(bands_10_d60.float())
+            images_20_d120.append(bands_20_d120.float())
+            images_60_d360.append(bands_60_d360.float())
+            images_60.append(bands_60.float())
 
         images_10_d60 = torch.cat(images_10_d60, 0)
         images_20_d120 = torch.cat(images_20_d120, 0)
