@@ -65,7 +65,7 @@ def DSen2_20(ordered_dict):
                 os.makedirs(os.path.join(os.path.dirname(inspect.getfile(DSen2Model)), config.save_weights_path))
             torch.save(net.state_dict(),
                        os.path.join(os.path.dirname(inspect.getfile(DSen2Model)), config.save_weights_path,
-                                    ordered_dict.dataset + '.tar'))
+                                    ordered_dict.dataset + '_20.tar'))
 
         if config.save_training_stats:
             if not os.path.exists(os.path.join(os.path.dirname(inspect.getfile(DSen2Model)), 'Stats', 'DSen2')):
