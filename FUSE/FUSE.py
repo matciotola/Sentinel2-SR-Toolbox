@@ -70,9 +70,11 @@ def FUSE_20(ordered_dict):
                                     ordered_dict.dataset + '_20.tar'))
 
         if config.save_training_stats:
-            if not os.path.exists('./Stats/FUSE'):
-                os.makedirs('./Stats/FUSE')
-            io.savemat('./Stats/FUSE/Training_FUSE.mat', history)
+            if not os.path.exists(os.path.join(os.path.dirname(inspect.getfile(FUSEModel)), 'Stats', 'FUSE')):
+                os.makedirs(os.path.join(os.path.dirname(inspect.getfile(FUSEModel)), 'Stats', 'FUSE'))
+            io.savemat(
+                os.path.join(os.path.dirname(inspect.getfile(FUSEModel)), 'Stats', 'FUSE', 'Training_FUSE_20.mat'),
+                history)
 
     bands_10_norm = normalize(bands_10)
     bands_20_up = upsample_protocol(bands_20, ratio)
