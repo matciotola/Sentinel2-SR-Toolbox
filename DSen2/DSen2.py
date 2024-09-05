@@ -145,9 +145,12 @@ def DSen2_60(ordered_dict):
         history = train(device, net, train_loader, config, val_loader)
 
         if config.save_weights:
-            if not os.path.exists(config.save_weights_path):
-                os.makedirs(config.save_weights_path)
-            torch.save(net.state_dict(), os.path.join(config.save_weights_path, 'DSen2_60m.tar'))
+            if not os.path.exists(
+                    os.path.join(os.path.dirname(inspect.getfile(DSen2Model)), config.save_weights_path)):
+                os.makedirs(os.path.join(os.path.dirname(inspect.getfile(DSen2Model)), config.save_weights_path))
+            torch.save(net.state_dict(),
+                       os.path.join(os.path.dirname(inspect.getfile(DSen2Model)), config.save_weights_path,
+                                    ordered_dict.dataset + '_60.tar'))
 
         if config.save_training_stats:
             if not os.path.exists('./Stats/DSen2'):
