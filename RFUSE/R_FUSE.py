@@ -60,7 +60,7 @@ def R_FUSE_20(ordered_dict):
         else:
             val_loader = None
 
-        net, history = train(device, net, train_loader, config, val_loader)
+        history = train(device, net, train_loader, config, ordered_dict, val_loader)
 
         if config.save_weights:
             if not os.path.exists(config.save_weights_path):
@@ -87,12 +87,7 @@ def R_FUSE_20(ordered_dict):
     spec_ref = spec_ref.to(device)
     struct_ref = struct_ref.to(device)
 
-    net, ta_history = target_adaptation(device, net, input_10, input_20, spec_ref, struct_ref, config)
-
-    if config.ta_save_weights:
-        if not os.path.exists(config.ta_save_weights_path):
-            os.makedirs(config.ta_save_weights_path)
-        torch.save(net.state_dict(), config.ta_save_weights_path)
+    ta_history = target_adaptation(device, net, input_10, input_20, spec_ref, struct_ref, ordered_dict.ratio, config)
 
     if config.ta_save_training_stats:
         if not os.path.exists('./Stats/R-FUSE'):
@@ -274,7 +269,7 @@ def train(device, net, train_loader, config, ordered_dict, val_loader=None):
 
     history = {'loss': history_loss, 'val_loss': history_val_loss}
 
-    return net, history
+    return history
 
 
 def target_adaptation(device, net, input_10, input_20, spectral_ref, struct_ref, config):
@@ -310,4 +305,5 @@ def target_adaptation(device, net, input_10, input_20, spectral_ref, struct_ref,
 
     history = {'spec_loss': history_spec_loss, 'struct_loss': history_struct_loss}
 
-    return net, history
+    return history
+
