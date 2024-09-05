@@ -125,14 +125,20 @@ def DSen2_60(ordered_dict):
     net = net.to(device)
 
     if (config.train or config.resume) and ordered_dict.img_number == 0:
-        train_paths = generate_paths(config.training_img_root, 'Reduced_Resolution', 'Training',  '60')
+        if config.training_img_root == '':
+            training_img_root = ordered_dict.root
+        else:
+            training_img_root = config.training_img_root
+        train_paths = generate_paths(training_img_root, ordered_dict.dataset, 'Training',
+                                     os.path.join('Reduced_Resolution', '60'))
         ds_train = TrainingDataset60mRR(train_paths, normalize)
         train_loader = DataLoader(ds_train, batch_size=config.batch_size, shuffle=True)
 
-        if len(config.validation_img_names) != 0:
-            val_paths = generate_paths(config.training_img_root, 'Reduced_Resolution', 'Validation',  '60')
+        if config.validation:
+            val_paths = generate_paths(training_img_root, ordered_dict.dataset, 'Validation',
+                                       os.path.join('Reduced_Resolution', '60'))
             ds_val = TrainingDataset60mRR(val_paths, normalize)
-            val_loader = DataLoader(ds_val, batch_size=config.batch_size, shuffle=True)
+            val_loader = DataLoader(ds_val, batch_size=config.batch_size, shuffle=False)
         else:
             val_loader = None
 
