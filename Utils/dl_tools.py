@@ -128,7 +128,7 @@ class TrainingDataset60mRR(Dataset):
         return self.patches_60.shape[0]
 
     def __getitem__(self, index):
-        return self.patches_10_d60[index], self.patches_20_d120[index], self.patches_60_d360, self.patches_60[index]
+        return self.patches_10_d60[index], self.patches_20_d120[index], self.patches_60_d360[index], self.patches_60[index]
 
 
 class TrainingDataset20mFR(Dataset):
