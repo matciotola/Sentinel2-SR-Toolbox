@@ -167,8 +167,8 @@ def FUSE_60(ordered_dict):
 
 def train(device, net, train_loader, config, ordered_dict, val_loader=None):
     criterion_spec = SpectralLoss().to(device)
-    criterion_struct = StructLoss().to(device)
-    criterion_reg = RegLoss().to(device)
+    criterion_struct = StructLoss(ordered_dict.ms_lr.shape[1]).to(device)
+    criterion_reg = RegLoss(ordered_dict.ms_lr.shape[1]).to(device)
     optim = torch.optim.Adam(net.parameters(), lr=config.learning_rate, betas=(config.beta_1, config.beta_2))
 
     history_loss_spec = []
