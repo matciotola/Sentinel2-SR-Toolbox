@@ -63,9 +63,12 @@ def R_FUSE_20(ordered_dict):
         history = train(device, net, train_loader, config, ordered_dict, val_loader)
 
         if config.save_weights:
-            if not os.path.exists(config.save_weights_path):
-                os.makedirs(config.save_weights_path)
-            torch.save(net.state_dict(), config.save_weights_path)
+            if not os.path.exists(
+                    os.path.join(os.path.dirname(inspect.getfile(RFUSEModel)), config.save_weights_path)):
+                os.makedirs(os.path.join(os.path.dirname(inspect.getfile(RFUSEModel)), config.save_weights_path))
+            torch.save(net.state_dict(),
+                       os.path.join(os.path.dirname(inspect.getfile(RFUSEModel)), config.save_weights_path,
+                                    ordered_dict.dataset + '_20.tar'))
 
         if config.save_training_stats:
             if not os.path.exists('./Stats/R-FUSE'):
