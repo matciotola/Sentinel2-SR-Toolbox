@@ -95,9 +95,11 @@ def R_FUSE_20(ordered_dict):
     ta_history = target_adaptation(device, net, input_10, input_20, spec_ref, struct_ref, ordered_dict.ratio, config)
 
     if config.ta_save_training_stats:
-        if not os.path.exists('./Stats/R-FUSE'):
-            os.makedirs('./Stats/R-FUSE')
-        io.savemat('./Stats/R-FUSE/TA_R-Fuse.mat', ta_history)
+        if not os.path.exists(os.path.join(os.path.dirname(inspect.getfile(RFUSEModel)), 'Stats', 'R-FUSE')):
+            os.makedirs(os.path.join(os.path.dirname(inspect.getfile(RFUSEModel)), 'Stats', 'R-FUSE'))
+        io.savemat(
+            os.path.join(os.path.dirname(inspect.getfile(RFUSEModel)), 'Stats', 'R-FUSE', 'TA_R-FUSE_20.mat'),
+            ta_history)
 
     net.eval()
     with torch.no_grad():
