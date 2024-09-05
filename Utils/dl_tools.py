@@ -105,6 +105,20 @@ class TrainingDataset60mRR(Dataset):
         images_60_d360 = norm(images_60_d360)
         images_60 = norm(images_60)
 
+        # find NaN index
+        nan_index_10 = torch.isnan(torch.sum(images_10_d60, dim=(1, 2, 3)))
+        nan_index_20 = torch.isnan(torch.sum(images_20_d120, dim=(1, 2, 3)))
+        nan_index_60 = torch.isnan(torch.sum(images_60_d360, dim=(1, 2, 3)))
+        nan_index_gt = torch.isnan(torch.sum(images_60, dim=(1, 2, 3)))
+
+        nan_index = nan_index_10 + nan_index_20 + nan_index_gt + nan_index_60
+
+        # Filter out NaN index
+        images_10_d60 = images_10_d60[~nan_index]
+        images_20_d120 = images_20_d120[~nan_index]
+        images_60_d360 = images_60_d360[~nan_index]
+        images_60 = images_60[~nan_index]
+
         self.patches_10_d60 = images_10_d60
         self.patches_20_d120 = images_20_d120
         self.patches_60_d360 = images_60_d360
