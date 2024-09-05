@@ -60,8 +60,9 @@ def input_prepro_rr(bands_high, bands_low, ratio):
 
 
 def input_prepro_fr(bands_high, bands_low_lr, ratio):
-    bands_low = F.interpolate(bands_low_lr, scale_factor=ratio, mode='bicubic')
-    struct_reference = fuseUpGenDetailRef(bands_high, bands_low_lr, ratio)
+    #bands_low = F.interpolate(bands_low_lr, scale_factor=ratio, mode='bicubic')
+    bands_low = imresize(bands_low_lr, scale=ratio)
+    struct_reference = fuseUpGenDetailRef(bands_high, bands_low_lr, ratio, ratio + 1)
     return bands_high, bands_low, bands_low_lr, struct_reference
 
 
