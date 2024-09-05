@@ -186,7 +186,7 @@ if __name__ == '__main__':
                                 metrics_values_rr_dict = dict(zip(fieldnames_rr, metrics_values_rr))
                                 print(metrics_values_rr_dict)
                                 metrics_rr.append(metrics_values_rr_dict)
-                                with open(os.path.join(save_assessment, experiment_type, '20', name + '_RR.csv'), 'a',
+                                with open(os.path.join(save_assessment, '20', name + '_RR.csv'), 'a',
                                           encoding='UTF8', newline='') as f:
                                     writer = csv.DictWriter(f, fieldnames=fieldnames_rr)
                                     writer.writerow(metrics_values_rr_dict)
