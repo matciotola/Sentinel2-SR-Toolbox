@@ -10,7 +10,7 @@ from osgeo import gdal
 from Utils.imresize_bicubic import imresize
 from Utils.spectral_tools import mtf, gen_mtf, mtf_kernel_to_torch
 from Metrics.cross_correlation import xcorr_torch
-from Utils.interpolator_tools import interp23tap_torch
+from Utils.interpolator_tools import ideal_interpolator
 
 def normalize(bands, ratio=2, shift=2):
 
@@ -46,7 +46,7 @@ def downsample_protocol(img, ratio):
 
 
 def upsample_protocol(img, ratio):
-    img_hr = interp23tap_torch(img, ratio).float()
+    img_hr = ideal_interpolator(img, ratio).float()
 
     return img_hr
 
