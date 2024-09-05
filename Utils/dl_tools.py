@@ -45,9 +45,9 @@ class TrainingDataset20mRR(Dataset):
 
         for i in range(len(paths)):
             bands_10_d20, bands_20_d40, _, bands_20 = open_mat(paths[i])
-            images_10_d20.append(bands_10_d20)
-            images_20_d40.append(bands_20_d40)
-            images_20.append(bands_20)
+            images_10_d20.append(bands_10_d20.float())
+            images_20_d40.append(bands_20_d40.float())
+            images_20.append(bands_20.float())
 
         images_10_d20 = torch.cat(images_10_d20, 0)
         images_20_d40 = torch.cat(images_20_d40, 0)
