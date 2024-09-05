@@ -60,7 +60,7 @@ def FUSE_20(ordered_dict):
         else:
             val_loader = None
 
-        net, history = train(device, net, train_loader, config, val_loader)
+        history = train(device, net, train_loader, config, ordered_dict, val_loader)
 
         if config.save_weights:
             if not os.path.exists(config.save_weights_path):
@@ -267,4 +267,4 @@ def train(device, net, train_loader, config, ordered_dict, val_loader=None):
                'val_spec_loss': history_val_loss_spec, 'val_struct_loss': history_val_loss_struct,
                'val_reg_loss': history_val_loss_reg}
 
-    return net, history
+    return history
