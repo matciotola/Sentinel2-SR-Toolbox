@@ -1,6 +1,6 @@
 gpu_number: '0'
 
-cond: 0.0001
+cond: 0.001 #0.0001
 num_iter: 1001
 learning_rate: 0.01
 

@@ -37,6 +37,5 @@ ta_save_training_stats: False
 lambda_1: 1.0
 lambda_2: 0.01
 
-ta_epochs: 100
-# ta_epochs: 50
+ta_epochs: 50
 ta_learning_rate: 0.0001
