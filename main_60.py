@@ -89,7 +89,7 @@ fieldnames_fr = ['Method', 'D_lambda', 'Repro-ERGAS', 'Repro-SAM', 'D_rho', 'Ela
 if __name__ == '__main__':
     from Utils.dl_tools import open_config
 
-    config_path = 'preambol.yaml'
+    config_path = 'preamble.yaml'
     config = open_config(config_path)
 
     for dataset in config.datasets:
