@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="s2superres_env" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="s2superres_env" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="s2srtool_env" project-jdk-type="Python SDK" />
 </project>

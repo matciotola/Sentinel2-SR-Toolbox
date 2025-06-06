@@ -18,6 +18,10 @@ def TV(ordered_dict):
 
     yms, ypan, ratio, dataset = ordered_dict.ms_lr, ordered_dict.pan, ordered_dict.ratio, ordered_dict.dataset
 
+    if ratio == 6:
+        ini_spectral_shape = yms.shape[1]
+        yms = yms.repeat(1, 2, 1, 1)
+
     alpha = 0.75
     lambda_ = 1e-3
     c = 8
@@ -35,6 +39,8 @@ def TV(ordered_dict):
         z = znext(z,x,b,alpha,lambda_,c)
         x = xnext(z, b, alpha)
 
+    if ratio == 6:
+        fused = x[:, :ini_spectral_shape, :, :]
     fused = x
     return fused
 

@@ -1,5 +1,5 @@
 import torch
-from .tools import generate_stack
+from ModelBasedOptimization.tools import generate_stack
 from Utils.spectral_tools import fspecial_gauss
 import gc
 from tqdm import tqdm
@@ -346,6 +346,9 @@ def pan4(y, x4, r, fbm):
 
 
 def patch_idx(nr, nc, edge, ps, mu, lambda_opt, alpha):
+
+    eps = 1e-6
+
     i = torch.squeeze(edge[:, 0])
     j = torch.squeeze(edge[:, 1])
 
@@ -383,9 +386,33 @@ def patch_idx(nr, nc, edge, ps, mu, lambda_opt, alpha):
     pi_minus_pj = pi - pj
     pi_minus_pj_active = pi_minus_pj[:, idx_pi_pj]
 
-    ptp_plus_i_inv = torch.inverse(
-        torch.matmul(pi_minus_pj_active.transpose(0, 1), pi_minus_pj_active) + torch.eye(card_i) * (
-                mu / lambda_opt / alpha))
+    # ptp_plus_i_inv = torch.inverse(
+    #     torch.matmul(pi_minus_pj_active.transpose(0, 1), pi_minus_pj_active) + torch.eye(card_i) * (
+    #             mu / lambda_opt / alpha))
+
+    try:
+        ptp_plus_i_inv = torch.inverse(
+            torch.matmul(pi_minus_pj_active.transpose(0, 1), pi_minus_pj_active) + torch.eye(card_i) * (
+                    mu / lambda_opt / alpha)
+        )
+    except torch._C._LinAlgError:
+        # Handle singular matrix by regularizing the diagonal elements
+        regularized_matrix = torch.matmul(pi_minus_pj_active.transpose(0, 1), pi_minus_pj_active) + torch.eye(
+            card_i) * (
+                                     mu / lambda_opt / alpha)
+
+        diag_elements = torch.diag(regularized_matrix)
+        zero_diag_indices = (diag_elements == 0)
+        if zero_diag_indices.any():
+            diag_elements[zero_diag_indices] += eps
+            regularized_matrix = regularized_matrix + torch.diagflat(zero_diag_indices * eps)
+
+        # Attempt inversion again
+        try:
+            ptp_plus_i_inv = torch.inverse(regularized_matrix)
+        except torch._C._LinAlgError:
+            # Fallback to pseudo-inverse if still singular
+            ptp_plus_i_inv = torch.linalg.pinv(regularized_matrix)
 
     return idx_pi_pj, ptp_plus_i_inv
 
@@ -393,6 +420,7 @@ if __name__ == '__main__':
     from scipy import io
     import numpy as np
     import matplotlib
+    from recordclass import recordclass
     matplotlib.use('TkAgg')
     from matplotlib import pyplot as plt
     temp = io.loadmat('/home/matteo/Desktop/MATLAB/SSSS/Yim_cell.mat')['Yim_cell']
@@ -409,12 +437,25 @@ if __name__ == '__main__':
         else:
             bands_60.append(torch.from_numpy(temp[0, i].astype(np.float64)[None, :, :]))
 
+    bands_10 = torch.vstack(bands_10).unsqueeze(0)
+    bands_20 = torch.vstack(bands_20).unsqueeze(0)
+    bands_60 = torch.vstack(bands_60).unsqueeze(0)
+
+    exp_info = {'ratio': 2}
+    exp_info['bands_10'] = bands_10
+    exp_info['bands_20'] = bands_20
+    exp_info['bands_60'] = bands_60
+    exp_info['ms_lr'] = bands_20
+    exp_info['sensor'] = 'S2-20'
+
+    exp_input = recordclass('exp_info', exp_info.keys())(*exp_info.values())
+
     # bands_10 = torch.vstack(bands_10)[None, :, :, :]
     # bands_20 = torch.vstack(bands_20)[None, :, :, :]
     # bands_60 = torch.vstack(bands_60)[None, :, :, :]
     #
-    # fused = SSSS(bands_10, bands_20, bands_60, 2)
+    fused = SSSS(exp_input)
     #
-    # plt.figure()
-    # plt.imshow(fused[0, 0, :, :].numpy(), cmap='gray')
-    # plt.show()
+    plt.figure()
+    plt.imshow(fused[0, 0, :, :].numpy(), cmap='gray')
+    plt.show()

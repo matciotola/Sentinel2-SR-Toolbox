@@ -12,7 +12,7 @@ from .losses import SpectralLoss, StructLoss
 from .input_preprocessing import input_prepro_fr, normalize, denormalize
 
 from Utils.dl_tools import open_config, generate_paths, TrainingDataset20mRR, TrainingDataset60mRR
-
+from Utils.interpolator_tools import ideal_interpolator
 
 def R_FUSE(ordered_dict):
     if ordered_dict.ratio == 2:
@@ -22,7 +22,8 @@ def R_FUSE(ordered_dict):
 
 def R_FUSE_20(ordered_dict):
     bands_10 = torch.clone(ordered_dict.bands_10).float()
-    bands_20 = torch.clone(ordered_dict.bands_20).float()
+    bands_20 = torch.clone(ordered_dict.ms).float()
+    bands_20_lr = torch.clone(ordered_dict.ms_lr).float()
 
     config_path = os.path.join(os.path.dirname(inspect.getfile(RFUSEModel)), 'config.yaml')
     config = open_config(config_path)
@@ -84,12 +85,13 @@ def R_FUSE_20(ordered_dict):
 
     bands_10_norm = normalize(bands_10)
     bands_20_norm = normalize(bands_20)
+    bands_20_lr_norm = normalize(bands_20_lr)
 
-    bands_10_norm, bands_20_norm, spec_ref, struct_ref = input_prepro_fr(bands_10_norm, bands_20_norm, ordered_dict.ratio)
+    struct_ref = input_prepro_fr(bands_10_norm, bands_20_lr_norm, ordered_dict.ratio)
 
     input_10 = bands_10_norm.to(device)
     input_20 = bands_20_norm.to(device)
-    spec_ref = spec_ref.to(device)
+    spec_ref = bands_20_lr_norm.to(device)
     struct_ref = struct_ref.to(device)
 
     ta_history = target_adaptation(device, net, input_10, input_20, spec_ref, struct_ref, ordered_dict.ratio, config)
@@ -114,7 +116,8 @@ def R_FUSE_20(ordered_dict):
 
 def R_FUSE_60(ordered_dict):
     bands_10 = torch.clone(ordered_dict.bands_10).float()
-    bands_60 = torch.clone(ordered_dict.bands_60).float()
+    bands_60 = torch.clone(ordered_dict.ms).float()
+    bands_60_lr = torch.clone(ordered_dict.ms_lr).float()
 
     config_path = os.path.join(os.path.dirname(inspect.getfile(RFUSEModel)), 'config.yaml')
     config = open_config(config_path)
@@ -176,12 +179,13 @@ def R_FUSE_60(ordered_dict):
 
     bands_10_norm = normalize(bands_10)
     bands_60_norm = normalize(bands_60)
+    bands_60_lr_norm = normalize(bands_60_lr)
 
-    bands_10_norm, bands_60_norm, spec_ref, struct_ref = input_prepro_fr(bands_10_norm, bands_60_norm, ordered_dict.ratio)
+    struct_ref = input_prepro_fr(bands_10_norm, bands_60_lr_norm, ordered_dict.ratio)
 
     input_10 = bands_10_norm.to(device)
     input_60 = bands_60_norm.to(device)
-    spec_ref = spec_ref.to(device)
+    spec_ref = bands_60_lr_norm.to(device)
     struct_ref = struct_ref.to(device)
 
     ta_history = target_adaptation(device, net, input_10, input_60, spec_ref, struct_ref, ordered_dict.ratio, config)
@@ -258,7 +262,8 @@ def train(device, net, train_loader, config, ordered_dict, val_loader=None):
                         inputs_lr = inputs_60
 
                     inputs_10 = inputs_10.float().to(device)
-                    inputs_lr = func.interpolate(inputs_lr, scale_factor=ordered_dict.ratio, mode='bicubic').float().to(device)
+                    #inputs_lr = func.interpolate(inputs_lr, scale_factor=ordered_dict.ratio, mode='bicubic').float().to(device)
+                    inputs_lr = ideal_interpolator(inputs_lr, ordered_dict.ratio).float().to(device)
                     labels = labels.float().to(device)
 
                     outputs = net(inputs_10, inputs_lr)

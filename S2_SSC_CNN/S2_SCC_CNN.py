@@ -15,7 +15,7 @@ from Utils.spectral_tools import mtf
 
 def S2_SSC_CNN(ordered_dict):
     bands_10 = torch.clone(ordered_dict.bands_10).float()
-    bands_20 = torch.clone(ordered_dict.bands_20).float()
+    bands_lr = torch.clone(ordered_dict.ms_lr).float()
 
     config_path = os.path.join(os.path.dirname(inspect.getfile(S2_SSC_CNN_model)), 'config.yaml')
     config = open_config(config_path)
@@ -25,10 +25,10 @@ def S2_SSC_CNN(ordered_dict):
 
     # Model
 
-    model = S2_SSC_CNN_model(bands_10.shape[1], bands_20.shape[1])
+    model = S2_SSC_CNN_model(bands_10.shape[1], bands_lr.shape[1])
 
     # Train procedure (zero shot)
-    history = zero_shot(model, bands_10, bands_20, device, ordered_dict, config)
+    history = zero_shot(model, bands_10, bands_lr, device, ordered_dict, config)
     if config.save_training_stats:
         if not os.path.exists(os.path.join(os.path.dirname(inspect.getfile(S2_SSC_CNN_model)), 'Stats', 'S2_SSC_CNN')):
             os.makedirs(os.path.join(os.path.dirname(inspect.getfile(S2_SSC_CNN_model)), 'Stats', 'S2_SSC_CNN'))
@@ -44,14 +44,16 @@ def S2_SSC_CNN(ordered_dict):
     with torch.no_grad():
         scale = bands_10.max()
         bands_10 = bands_10 / scale
-        bands_20 = bands_20 / scale
-
-        bands_20_up = ideal_interpolator(bands_20, ordered_dict.ratio).float()
+        bands_lr = bands_lr / scale
+        if ordered_dict.ratio == 2:
+            bands_lr_up = ideal_interpolator(bands_lr, ordered_dict.ratio).float()
+        else:
+            bands_lr_up = func.interpolate(bands_lr, scale_factor=ordered_dict.ratio, mode='bicubic')
 
         bands_10 = bands_10.to(device)
-        bands_20_up = bands_20_up.to(device)
+        bands_lr_up = bands_lr_up.to(device)
 
-        out = model(bands_10, bands_20_up)
+        out = model(bands_10, bands_lr_up)
         fused = out * scale
 
     return fused.detach().cpu()
@@ -69,47 +71,58 @@ def generate_cube(x, size=16, stride=8):
 
 
 class SimpleDataset(Dataset):
-    def __init__(self, S2_10, S2_20, S2_20_GT):
+    def __init__(self, S2_10, S2_lr, S2_GT):
         self.S2_10 = S2_10
-        self.S2_20 = S2_20
-        self.S2_20_gt = S2_20_GT
+        self.S2_20 = S2_lr
+        self.S2_GT = S2_GT
 
     def __len__(self):
         return self.S2_10.shape[0]
 
     def __getitem__(self, idx):
-        return self.S2_10[idx], self.S2_20[idx], self.S2_20_gt[idx]
+        return self.S2_10[idx], self.S2_20[idx], self.S2_GT[idx]
 
 
-def zero_shot(model, bands_10, bands_20, device, ordered_dict, config):
+def zero_shot(model, bands_10, bands_lr, device, ordered_dict, config):
 
     temp_path = os.path.join(os.path.join(os.path.dirname(inspect.getfile(S2_SSC_CNN_model)), config.save_weights_path))
     if not os.path.exists(temp_path):
         os.makedirs(temp_path)
 
     # Input pre-processing
-    bands_10_lp = mtf(bands_10, 'S2-10', 2)
-    bands_20_lp = mtf(bands_20, 'S2-20', 2)
+    bands_10_lp = mtf(bands_10, 'S2-10', ordered_dict.ratio)
+    bands_lr_lp = mtf(bands_lr, ordered_dict.sensor, ordered_dict.ratio)
 
     input_10 = func.interpolate(bands_10_lp, scale_factor=1/ordered_dict.ratio, mode='nearest-exact')
-    bands_20_downsampled = func.interpolate(bands_20_lp, scale_factor=1/ordered_dict.ratio, mode='nearest-exact')
+    # pad if necessary
+    padded = False
+    if bands_lr_lp.shape[2] % ordered_dict.ratio != 0 or bands_lr_lp.shape[3] % ordered_dict.ratio != 0:
+        bands_lr_lp = func.pad(bands_lr_lp, (0, ordered_dict.ratio - bands_lr_lp.shape[2] % ordered_dict.ratio, 0, ordered_dict.ratio - bands_lr_lp.shape[3] % ordered_dict.ratio), mode='reflect')
+        padded = True
+    bands_lr_downsampled = func.interpolate(bands_lr_lp, scale_factor=1/ordered_dict.ratio, mode='nearest-exact')
 
-    input_20 = ideal_interpolator(bands_20_downsampled, ordered_dict.ratio).float()
+    if ordered_dict.ratio == 2:
+        input_lr = ideal_interpolator(bands_lr_downsampled, ordered_dict.ratio).float()
+    else:
+        input_lr = func.interpolate(bands_lr_downsampled, scale_factor=ordered_dict.ratio, mode='bicubic')
+    if padded:
+        input_lr = input_lr[:, :, :bands_lr.shape[2], :bands_lr.shape[3]]
+
 
     scale = input_10.max()
     input_10 = input_10 / scale
-    input_20 = input_20 / scale
-    input_gt = bands_20 / scale
+    input_lr = input_lr / scale
+    input_gt = bands_lr / scale
 
     # Generate patches
 
     patches_10 = generate_cube(input_10)
-    patches_20 = generate_cube(input_20)
+    patches_lr = generate_cube(input_lr)
     patches_gt = generate_cube(input_gt)
 
     # Dataset
-    train_dataset = SimpleDataset(patches_10, patches_20, patches_gt)
-    val_dataset = SimpleDataset(input_10, input_20, input_gt)
+    train_dataset = SimpleDataset(patches_10, patches_lr, patches_gt)
+    val_dataset = SimpleDataset(input_10, input_lr, input_gt)
 
     train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
@@ -136,12 +149,12 @@ def zero_shot(model, bands_10, bands_20, device, ordered_dict, config):
         running_loss = 0.0
         running_loss_val = 0.0
         for i, data in enumerate(train_loader):
-            p_10, p_20, p_gt = data
+            p_10, p_lr, p_gt = data
             optimizer.zero_grad()
             p_10 = p_10.to(device)
-            p_20 = p_20.to(device)
+            p_lr = p_lr.to(device)
             p_gt = p_gt.to(device)
-            output = model(p_10, p_20)
+            output = model(p_10, p_lr)
             loss = criterion(output, p_gt)
 
             loss.backward()
@@ -154,11 +167,11 @@ def zero_shot(model, bands_10, bands_20, device, ordered_dict, config):
         model.eval()
         with torch.no_grad():
             for i, data in enumerate(val_loader):
-                p_10, p_20, p_gt = data
+                p_10, p_lr, p_gt = data
                 p_10 = p_10.to(device)
-                p_20 = p_20.to(device)
+                p_lr = p_lr.to(device)
                 p_gt = p_gt.to(device)
-                output = model(p_10, p_20)
+                output = model(p_10, p_lr)
                 loss = criterion(output, p_gt)
                 running_loss_val += loss.item()
 

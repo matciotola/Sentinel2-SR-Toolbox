@@ -26,7 +26,7 @@ def evaluation_rr(fused, gt, ratio, flag_cut=True, dim_cut=11, L=16):
 
 def evaluation_fr(fused, bands_10, bands_lr, ratio, sensor):
     starting = 1
-    sigma = 4
+    sigma = max(4, ratio)
 
     kernel = mtf_kernel_to_torch(gen_mtf(ratio, sensor, nbands=fused.shape[1]))
 

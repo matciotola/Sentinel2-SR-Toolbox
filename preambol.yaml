@@ -1,11 +1,11 @@
-ds_root: '/media/matteo/T7/Datasets/'
-datasets: ['OriginalS2']
+ds_root: './Datasets'
+datasets: ['Sentinel2_2A']
 
 experiment_folders: ['Reduced_Resolution', 'Full_Resolution']
 
 pan_generation: ['selection', 'synthesize']
 
-algorithms: ['EXP', 'BDSD', 'BDSD-PC', 'GS', 'GSA', 'BT-H', 'PRACS', 'AWLP', 'MTF-GLP', 'MTF-GLP-FS', 'MTF-GLP-HPM', 'MTF-GLP-HPM-H', 'MTF-GLP-HPM-R', 'SR-D', 'TV', 'SEL-ATPRK', 'SYNTH-ATPRK','MuSA', 'S2Sharp', 'SupReMe', 'SSSS', 'DSen2', 'FUSE', 'S2_SSC_CNN', 'SURE', 'R-FUSE']
+algorithms: ['EXP', 'BDSD-PC', 'GSA', 'BT-H', 'PRACS', 'AWLP', 'MTF-GLP-FS', 'MTF-GLP-HPM', 'MTF-GLP-HPM-R', 'TV', 'SEL-ATPRK', 'SYNTH-ATPRK', 'SupReMe', 'MuSA', 'S2Sharp', 'SSSS', 'DSen2', 'FUSE', 'S2-SSC-CNN', 'R-FUSE', 'S2-UCNN']
 
 
 save_results: True

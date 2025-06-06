@@ -120,12 +120,12 @@ def SURE(ordered_dict):
 
     net = net.eval()
     with torch.no_grad():
-        outputs = net(final_net_input).detach().cpu()
+        outputs = net(final_net_input).detach().cpu() * scale
 
     outputs_20 = outputs[:, 4:10, :, :]
     outputs_60 = outputs[:, 10:, :, :]
 
     if ordered_dict.ratio == 2:
-        return outputs_20 * scale
+        return outputs_20
     else:
-        return outputs_60 * scale
+        return outputs_60

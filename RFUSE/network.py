@@ -7,12 +7,12 @@ from Utils.interpolator_tools import interp23tap_torch
 
 
 class RFUSEModel(nn.Module):
-    def __init__(self, bands_10=4, bands_lr=6, ratio=2):
+    def __init__(self, bands_10=4, bands_lr=6, ratio=2, kernel_size=61):
         super(RFUSEModel, self).__init__()
         self.ratio = ratio
         in_channels = bands_10 + bands_lr
         # Network structure
-        h_bh = gen_mtf(self.ratio, 'S2-10', kernel_size=9)
+        h_bh = gen_mtf(self.ratio, 'S2-10', kernel_size=kernel_size)
         h_bh = mtf_kernel_to_torch(h_bh)
 
         if ratio == 2:
@@ -20,7 +20,7 @@ class RFUSEModel(nn.Module):
         else:
             sensor = 'S2-60'
 
-        h_bl = gen_mtf(self.ratio, sensor, kernel_size=9)
+        h_bl = gen_mtf(self.ratio, sensor, kernel_size=kernel_size)
         h_bl = mtf_kernel_to_torch(h_bl)
 
         self.depthconv_10 = nn.Conv2d(in_channels=bands_10,

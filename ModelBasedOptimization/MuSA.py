@@ -3,6 +3,7 @@ from .tools import *
 from Utils.imresize_bicubic import imresize
 from Utils.bm3d import bm3d_rgb_mod
 
+
 def MuSA(ordered_dict):
     bands_10 = torch.clone(ordered_dict.bands_10)
     bands_20 = torch.clone(ordered_dict.bands_20)
@@ -150,7 +151,6 @@ def MuSA(ordered_dict):
             v2im = torch.clone(v2im_new)
             v2 = torch.reshape(v2im.transpose(2, 3), [v2.shape[0], v2.shape[1], v2.shape[2]])#.transpose(1, 2)
 
-        print(i, torch.norm(nu1+d1-v1, p='fro').item(), torch.norm(nu2+d2-v2, p='fro').item())
         d1 = -nu1 + v1
         d2 = -nu2 + v2
 
@@ -167,6 +167,8 @@ def MuSA(ordered_dict):
         fused = fused_60
 
     return fused
+
+
 def synthetize_pan(coarse, pan):
     bs, c1, a1, b1 = coarse.shape
     _, c2, a2, b2 = pan.shape
@@ -181,53 +183,3 @@ def synthetize_pan(coarse, pan):
     z_r = torch.unflatten(ff1.transpose(-2, -1), dim=2, sizes=(b2, a2)).transpose(2, 3)
 
     return z_r
-
-
-
-if __name__ == '__main__':
-    from scipy import io
-    import matplotlib
-    from recordclass import recordclass
-    import numpy as np
-
-    matplotlib.use('TkAgg')
-    import matplotlib.pyplot as plt
-
-    bands_10_index = [1, 2, 3, 7]
-    bands_20_index = [4, 5, 6, 8, 10, 11]
-    bands_60_index = [0, 9]
-
-    y_im = io.loadmat('/home/matteo/Desktop/MATLAB/MusaExperiments/InputData/RealData/S2_Crops.mat')['S2']
-    bands_high = []
-    for i in bands_10_index:
-        bands_high.append(y_im[i, :][0][None, None, :, :])
-
-    bands_high = np.concatenate(bands_high, axis=1).astype(np.float64)
-    bands_high = torch.from_numpy(bands_high)
-
-    bands_intermediate_lr = []
-    for i in bands_20_index:
-        bands_intermediate_lr.append(y_im[i, :][0][None, None, :, :])
-
-    bands_intermediate_lr = np.concatenate(bands_intermediate_lr, axis=1).astype(np.float64)
-    bands_intermediate_lr = torch.from_numpy(bands_intermediate_lr)
-
-    bands_low_lr = []
-    for i in bands_60_index:
-        bands_low_lr.append(y_im[i, :][0][None, None, :, :])
-
-    bands_low_lr = np.concatenate(bands_low_lr, axis=1).astype(np.float64)
-    bands_low_lr = torch.from_numpy(bands_low_lr)
-    exp_info = {'bands_low_lr': bands_low_lr, 'bands_intermediate': bands_intermediate_lr, 'bands_high': bands_high}
-
-    exp_input = recordclass('exp_info', exp_info.keys())(*exp_info.values())
-
-    fused20, fused60 = MuSA(exp_input)
-
-    fused_20 = fused20.numpy()
-    fused_60 = fused60.numpy()
-    plt.figure()
-    plt.imshow(fused_20[0, 4, :, :], cmap='gray')
-    plt.figure()
-    plt.imshow(fused_60[0, 0, :, :], cmap='gray')
-

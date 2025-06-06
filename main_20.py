@@ -31,6 +31,7 @@ from FUSE.FUSE import FUSE
 from RFUSE.R_FUSE import R_FUSE
 from S2_SSC_CNN.S2_SCC_CNN import S2_SSC_CNN
 from SURE.SURE import SURE
+from S2_UCNN.S2_UCNN import S2_UCNN
 
 from Metrics.evaluation import evaluation_rr, evaluation_fr
 
@@ -79,7 +80,8 @@ pansharpening_algorithm_dict = {
 ad_hoc_algorithm_dict = {'EXP': EXP,  # Baseline
                         'MuSA': MuSA, 'SSSS': SSSS, 'S2Sharp': S2Sharp, 'SupReMe': SupReMe, # Model-Based Optimization
                         'SEL-ATPRK': SEL_ATPRK, 'SYNTH-ATPRK': SYNTH_ATPRK,  # ATPRK
-                        'DSen2': DSen2, 'FUSE': FUSE, 'R-FUSE': R_FUSE, 'S2-SSC-CNN': S2_SSC_CNN, 'SURE': SURE # Deep Learning
+                        'DSen2': DSen2, 'FUSE': FUSE, 'R-FUSE': R_FUSE, 'S2-SSC-CNN': S2_SSC_CNN, 'S2-UCNN': S2_UCNN,
+                         'SURE': SURE # Deep Learning
                          }
 fieldnames_rr = ['Method', 'ERGAS', 'SAM', 'Q2n', 'Elapsed_time']
 fieldnames_fr = ['Method', 'D_lambda', 'Repro-ERGAS', 'Repro-SAM', 'D_rho', 'Elapsed_time']
@@ -175,6 +177,8 @@ if __name__ == '__main__':
                         start_time = time.time()
                         fused = pan_method(method, exp_input)
                         end_time = time.time()
+                        torch.cuda.empty_cache()
+                        gc.collect()
                         elapsed_time = end_time - start_time
                         print('Elapsed time for executing the algorithm: ' + str(elapsed_time))
                         with torch.no_grad():
@@ -220,6 +224,8 @@ if __name__ == '__main__':
                     method = ad_hoc_algorithm_dict[algorithm]
                     fused = method(exp_input)
                     end_time = time.time()
+                    torch.cuda.empty_cache()
+                    gc.collect()
                     elapsed_time = end_time - start_time
                     print('Elapsed time for executing the algorithm: ' + str(elapsed_time))
                     with torch.no_grad():

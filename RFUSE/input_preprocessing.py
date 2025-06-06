@@ -59,16 +59,16 @@ def input_prepro_rr(bands_high, bands_low, ratio):
     return bands_high_lr, bands_low_lr, bands_low
 
 
-def input_prepro_fr(bands_high, bands_low_lr, ratio):
+def input_prepro_fr(bands_high, bands_low, ratio):
     #bands_low = F.interpolate(bands_low_lr, scale_factor=ratio, mode='bicubic')
-    bands_low = imresize(bands_low_lr, scale=ratio)
-    struct_reference = fuseUpGenDetailRef(bands_high, bands_low_lr, ratio, ratio + 1)
-    return bands_high, bands_low, bands_low_lr, struct_reference
+    #bands_low = imresize(bands_low_lr, scale=ratio)
+    struct_reference = fuseUpGenDetailRef(bands_high, bands_low, ratio, 5)
+    return struct_reference
 
 
 def fuseUpGenDetailRef(bands_high, bands_low_lr, ratio=2, w_size=3, shrink=5):
 
-    h = gen_mtf(ratio, sensor='None', kernel_size=41, nbands=bands_high.shape[1])
+    h = gen_mtf(ratio, sensor='None', kernel_size=61, nbands=bands_high.shape[1])
     h = mtf_kernel_to_torch(h).to(bands_high.device)
 
     bands_high_lp = conv2d(bands_high, h, padding='same', groups=bands_high.shape[1])
