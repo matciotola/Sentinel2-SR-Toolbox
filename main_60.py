@@ -30,7 +30,6 @@ from DSen2.DSen2 import DSen2
 from FUSE.FUSE import FUSE
 from RFUSE.R_FUSE import R_FUSE
 from S2_SSC_CNN.S2_SCC_CNN import S2_SSC_CNN
-from SURE.SURE import SURE
 from S2_UCNN.S2_UCNN import S2_UCNN
 
 from Metrics.evaluation import evaluation_rr, evaluation_fr
@@ -80,8 +79,7 @@ pansharpening_algorithm_dict = {
 ad_hoc_algorithm_dict = {'EXP': EXP,  # Baseline
                         'MuSA': MuSA, 'SSSS': SSSS, 'S2Sharp': S2Sharp, 'SupReMe': SupReMe, # Model-Based Optimization
                         'SEL-ATPRK': SEL_ATPRK, 'SYNTH-ATPRK': SYNTH_ATPRK,  # ATPRK
-                        'DSen2': DSen2, 'FUSE': FUSE, 'R-FUSE': R_FUSE, 'S2-SSC-CNN': S2_SSC_CNN, 'S2-UCNN': S2_UCNN,
-                         'SURE': SURE # Deep Learning
+                        'DSen2': DSen2, 'FUSE': FUSE, 'R-FUSE': R_FUSE, 'S2-SSC-CNN': S2_SSC_CNN, 'S2-UCNN': S2_UCNN, # Deep Learning
                          }
 
 fieldnames_rr = ['Method', 'ERGAS', 'SAM', 'Q2n', 'Elapsed_time']
