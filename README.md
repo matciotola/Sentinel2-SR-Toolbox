@@ -35,7 +35,7 @@ terms of the license, as specified in the document [`LICENSE`](https://github.co
 
 ## Dataset
 
-The dataset used is downable from the [GRIP-UNINA website](https://grip.unina.it/sentinel-2-sharpening-dataset/).
+The dataset used is downable from the [GRIP-UNINA website](https://www.grip.unina.it/download/prog/S2SRToolbox/).
 However, we provide extensive instructions on how to download and elaborate the images correctly in the [`Dataset`](https://github.com/matciotola/hyperspectral_pansharpening_toolbox/tree/main/Dataset) folder of this repository.
 For any problem or question, please contact me at If you have any problems or questions, please contact me by email ([matteo.ciotola@unina.it](mailto:matteo.ciotola@unina.it)).
 
