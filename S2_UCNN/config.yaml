@@ -1,0 +1,16 @@
+gpu_number: '0'
+
+# Training hyperparameters
+learning_rate: 0.001
+beta_1: 0.9
+beta_2: 0.999
+epochs: 1500
+batch_size: 1
+model_weights_path: ''
+save_weights_path: 'weights'
+save_training_stats: True
+
+split_test_image_for_prior: True
+
+
+
