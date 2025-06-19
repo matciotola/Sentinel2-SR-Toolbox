@@ -63,11 +63,8 @@ the operation is not guaranteed with other configurations.
 *   Create the virtual environment with the `s2_sharp_toolbox_env.yml`
 
 <!---->
-    # For Windows/Linux users
-    conda env create -n s2_sharp_toolbox_env -f s2_sharp_toolbox_env.yml
 
-    # For MacOS users
-    conda env create -n s2_sharp_toolbox_env -f s2_sharp_toolbox_env_mac.yml 
+    conda env create -n s2_sharp_toolbox_env -f s2_sharp_toolbox_env.yml
 
 *   Activate the Conda Environment
 

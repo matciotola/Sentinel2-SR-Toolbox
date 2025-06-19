@@ -1,15 +1,9 @@
 name: s2_sharp_toolbox_env
 channels:
-  - nvidia
-  - pytorch
   - conda-forge
   - defaults
 dependencies:
   - python=3.10
-  - torchvision
-  - torchaudio
-  - pytorch
-  - pytorch-cuda=11.8
   - h5py
   - scipy
   - matplotlib
@@ -21,4 +15,8 @@ dependencies:
   - pip
   - pip:
        - recordclass
+       - torch
+       - torchvision
+       - torchaudio
+       - pytorch-minimize
        - kornia
